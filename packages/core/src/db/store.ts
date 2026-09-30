@@ -161,7 +161,7 @@ export class CareStore {
   }
 
   async upsertProfile(sub: string, fields: { firstName?: string; email?: string }): Promise<void> {
-    const sets = ['#type = :type', 'sub = :sub', 'GSI1PK = :pk', 'GSI1SK = :profile'];
+    const sets = ['#type = :type', '#sub = :sub', 'GSI1PK = :pk', 'GSI1SK = :profile'];
     const values: Item = { ':type': 'user', ':sub': sub, ':pk': userPk(sub), ':profile': PROFILE };
     if (fields.firstName) {
       sets.push('firstName = :fn');
@@ -176,7 +176,7 @@ export class CareStore {
         TableName: this.t,
         Key: { PK: userPk(sub), SK: PROFILE },
         UpdateExpression: `SET ${sets.join(', ')}`,
-        ExpressionAttributeNames: { '#type': 'type' },
+        ExpressionAttributeNames: { '#type': 'type', '#sub': 'sub' },
         ExpressionAttributeValues: values,
       }),
     );
@@ -190,8 +190,8 @@ export class CareStore {
       new UpdateCommand({
         TableName: this.t,
         Key: { PK: userPk(sub), SK: PROFILE },
-        UpdateExpression: 'SET attempts = :a, #type = :type, sub = :sub, GSI1PK = :pk, GSI1SK = :profile',
-        ExpressionAttributeNames: { '#type': 'type' },
+        UpdateExpression: 'SET attempts = :a, #type = :type, #sub = :sub, GSI1PK = :pk, GSI1SK = :profile',
+        ExpressionAttributeNames: { '#type': 'type', '#sub': 'sub' },
         ExpressionAttributeValues: { ':a': attempts, ':type': 'user', ':sub': sub, ':pk': userPk(sub), ':profile': PROFILE },
       }),
     );
@@ -353,7 +353,7 @@ export class CareStore {
       ...(args.member.role === 'recipient' ? { recipientSub: args.member.sub } : {}),
     };
     const snap = snapshotOf(next);
-    const profileSets = ['#type = :type', 'sub = :sub', 'GSI1PK = :pk', 'GSI1SK = :profile', 'firstName = :fn'];
+    const profileSets = ['#type = :type', '#sub = :sub', 'GSI1PK = :pk', 'GSI1SK = :profile', 'firstName = :fn'];
     const profileValues: Item = {
       ':type': 'user',
       ':sub': args.member.sub,
@@ -375,7 +375,7 @@ export class CareStore {
           TableName: this.t,
           Key: { PK: userPk(args.member.sub), SK: PROFILE },
           UpdateExpression: `SET ${profileSets.join(', ')} REMOVE attempts`,
-          ExpressionAttributeNames: { '#type': 'type' },
+          ExpressionAttributeNames: { '#type': 'type', '#sub': 'sub' },
           ExpressionAttributeValues: profileValues,
         },
       },
