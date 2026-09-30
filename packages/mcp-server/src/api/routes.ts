@@ -309,6 +309,7 @@ function publicCircle(meta: CircleMeta) {
     doseGraceMin: meta.doseGraceMin,
     paused: meta.paused,
     hasRecipient: Boolean(meta.recipientSub),
+    createdBy: meta.createdBy,
     members: meta.members,
   };
 }

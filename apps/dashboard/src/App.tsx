@@ -1,0 +1,158 @@
+import { useCallback, useEffect, useState } from 'react';
+import { api, ApiError, type Circle, type Me } from './api';
+import { completeSignIn, isSignedIn, signIn, signOut } from './auth';
+import { AccountPage, AlertsPage, CreateCirclePage, MedicationsPage, MembersPage, SettingsPage, TimelinePage } from './pages';
+
+type Tab = 'timeline' | 'medications' | 'members' | 'alerts' | 'settings' | 'account';
+const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [
+  { id: 'timeline', label: 'Timeline' },
+  { id: 'medications', label: 'Medicines' },
+  { id: 'members', label: 'Family and codes' },
+  { id: 'alerts', label: 'Email alerts' },
+  { id: 'settings', label: 'Check-in window', adminOnly: true },
+  { id: 'account', label: 'Account' },
+];
+
+export function App() {
+  const [me, setMe] = useState<Me | null>(null);
+  const [circle, setCircle] = useState<Circle | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>('timeline');
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const who = await api<Me>('/me');
+      setMe(who);
+      setCircle(who.membership ? await api<Circle>(`/circles/${who.membership.circleId}`) : null);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        signOut();
+        setMe(null);
+      } else setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (window.location.pathname === '/callback') {
+        try {
+          await completeSignIn();
+        } catch (err) {
+          setError((err as Error).message);
+          setLoading(false);
+          return;
+        }
+      }
+      if (isSignedIn()) await load();
+      else setLoading(false);
+    })();
+  }, [load]);
+
+  if (loading) return <Shell><p role="status">Loading…</p></Shell>;
+
+  if (!me) {
+    return (
+      <Shell>
+        <h1>Care Circle</h1>
+        <p className="lead">Daily check-ins and a simple medicine log, shared with the family.</p>
+        {error && <p role="alert" className="error">{error}</p>}
+        <button className="primary" onClick={() => void signIn()}>
+          Sign in
+        </button>
+        <Footer />
+      </Shell>
+    );
+  }
+
+  const role = me.membership?.role;
+  const visibleTabs = TABS.filter((t) => !t.adminOnly || role === 'admin');
+
+  return (
+    <Shell
+      header={
+        <div className="topbar">
+          <span>
+            Signed in as <strong>{me.firstName ?? 'you'}</strong>
+            {role ? ` · ${role === 'admin' ? 'lead caregiver' : role === 'member' ? 'family member' : 'the person Care Circle looks after'}` : ''}
+          </span>
+          <button
+            onClick={() => {
+              signOut();
+              setMe(null);
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      }
+    >
+      {error && <p role="alert" className="error">{error}</p>}
+      {!circle ? (
+        <CreateCirclePage onCreated={load} />
+      ) : (
+        <>
+          <h1>{circle.recipientFirstName}'s circle</h1>
+          {circle.paused && (
+            <p className="banner" role="status">
+              {circle.recipientFirstName} has paused sharing. Check-ins and medicine logs are hidden and missed alerts are off.
+            </p>
+          )}
+          <nav aria-label="Sections">
+            <ul className="tabs" role="tablist">
+              {visibleTabs.map((t) => (
+                <li key={t.id} role="presentation">
+                  <button role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
+                    {t.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <section role="tabpanel" aria-label={visibleTabs.find((t) => t.id === tab)?.label}>
+            {tab === 'timeline' && <TimelinePage circle={circle} />}
+            {tab === 'medications' && <MedicationsPage circle={circle} canEdit={role === 'admin'} />}
+            {tab === 'members' && <MembersPage circle={circle} me={me} onChange={load} />}
+            {tab === 'alerts' && <AlertsPage circle={circle} me={me} />}
+            {tab === 'settings' && role === 'admin' && <SettingsPage circle={circle} onSaved={load} />}
+            {tab === 'account' && (
+              <AccountPage
+                me={me}
+                circle={circle}
+                onDeleted={() => {
+                  signOut();
+                  setMe(null);
+                }}
+              />
+            )}
+          </section>
+        </>
+      )}
+      <Footer />
+    </Shell>
+  );
+}
+
+function Shell({ children, header }: { children: React.ReactNode; header?: React.ReactNode }) {
+  return (
+    <>
+      <a href="#main" className="skip">
+        Skip to content
+      </a>
+      {header}
+      <main id="main">{children}</main>
+    </>
+  );
+}
+
+function Footer() {
+  return (
+    <footer>
+      <p>Care Circle only knows what someone tells it. It is not an emergency service; in an emergency, call 911.</p>
+      <p>This is not a substitute for professional medical advice. Consult a healthcare provider for personal medical decisions.</p>
+    </footer>
+  );
+}
