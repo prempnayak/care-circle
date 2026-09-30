@@ -147,6 +147,10 @@ export const copy = {
   statusDoses: (logged: number, total: number, openNames: string[]) => {
     if (total === 0) return '';
     if (logged === total) return total === 1 ? 'The one medicine today is logged.' : `All ${numberWord(total)} medicines today are logged.`;
+    if (logged === 0) {
+      if (openNames.length > 0 && openNames.length <= 2) return `No medicines are logged yet today; ${listNames(openNames)} ${openNames.length === 1 ? 'is' : 'are'} still open.`;
+      return `None of today's ${numberWord(total)} medicines are logged yet.`;
+    }
     const head = `${capitalize(numberWord(logged))} of ${numberWord(total)} medicines today ${logged === 1 ? 'is' : 'are'} logged`;
     if (openNames.length === 0) return `${head}.`;
     if (openNames.length <= 2) return `${head}; ${listNames(openNames)} ${openNames.length === 1 ? 'is' : 'are'} still open.`;
@@ -154,8 +158,8 @@ export const copy = {
   },
 
   // ---- get_week_summary ----
-  weekSummary: (name: string, days: number, checkInDays: number, expectedDays: number, logged: number, scheduled: number) => {
-    const ci = `${name} checked in ${checkInDays} of the last ${expectedDays === days ? days : expectedDays} days`;
+  weekSummary: (name: string, checkInDays: number, expectedDays: number, logged: number, scheduled: number) => {
+    const ci = `${name} checked in ${checkInDays} of the last ${expectedDays} ${expectedDays === 1 ? 'day' : 'days'}`;
     return scheduled > 0 ? `${ci} and logged ${logged} of ${scheduled} doses.` : `${ci}.`;
   },
   weekMissedCheckIns: (weekdays: string[]) =>
@@ -289,7 +293,9 @@ export function allSpeechSamples(): string[] {
     `${copy.statusSelfCheckedIn('8:40')} ${copy.statusDoses(2, 2, [])}`,
     copy.statusSelfNotYet('10:00 am'),
     copy.statusDoses(0, 5, ['a', 'b', 'c']),
-    `${copy.weekSummary(n, 7, 6, 7, 25, 28)} ${copy.weekMissedCheckIns(['Tuesday'])}`,
+    copy.statusDoses(0, 2, ['metformin', 'lisinopril']),
+    copy.statusDoses(2, 5, ['a', 'b', 'c']),
+    `${copy.weekSummary(n, 6, 7, 25, 28)} ${copy.weekMissedCheckIns(['Tuesday'])}`,
     copy.weekMissedCheckIns(['Tuesday', 'Friday']),
     copy.weekNoData(n),
     copy.sharingPaused(),

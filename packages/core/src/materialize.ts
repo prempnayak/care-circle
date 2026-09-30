@@ -27,7 +27,7 @@ export async function materializeCircle(
   store: CareStore,
   clock: Clock,
   meta: CircleMeta,
-  opts: { resync?: boolean; medications?: Medication[] } = {},
+  opts: { resync?: boolean; medications?: Medication[]; includeOverdue?: boolean } = {},
 ): Promise<MaterializeResult> {
   const now = clock.now();
   const today = todayIn(clock, meta.tz);
@@ -38,7 +38,7 @@ export async function materializeCircle(
   for (const date of dates) {
     const deadline = checkInDeadline(meta, date);
     // Never create an item that is already overdue (a brand-new circle shouldn't alert about this morning).
-    if (deadline > now.toISOString()) {
+    if (opts.includeOverdue || deadline > now.toISOString()) {
       if (await store.putOpenCheckIn(meta.circleId, date, deadline, now)) result.checkInsCreated++;
       else if (opts.resync) await store.moveCheckInDeadline(meta.circleId, date, deadline);
     }
@@ -69,7 +69,7 @@ export async function materializeCircle(
         status: 'open',
         deadline: doseDeadline(meta, date, time),
       };
-      if (dose.deadline <= now.toISOString()) continue;
+      if (!opts.includeOverdue && dose.deadline <= now.toISOString()) continue;
       // On a resync, only add doses that are still in the future.
       if (opts.resync && localInstant(date, time, meta.tz).toJSDate() <= now) continue;
       if (await store.putOpenDose(meta.circleId, dose, sk, now)) result.dosesCreated++;

@@ -3,6 +3,7 @@ export * from './config';
 export * from './copy';
 export * from './crisis';
 export * from './crypto';
+export * from './demo';
 export * from './db/client';
 export * from './db/keys';
 export * from './db/store';

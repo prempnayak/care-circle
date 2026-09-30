@@ -9,3 +9,4 @@ cdk.out/
 .DS_Store
 .vite/
 tests/load/results/
+packages/dev-auth/.keys/

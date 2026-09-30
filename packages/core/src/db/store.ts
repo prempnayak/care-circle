@@ -398,6 +398,19 @@ export class CareStore {
     await this.db.doc.send(new DeleteCommand({ TableName: this.t, Key: { PK: userPk(sub), SK: PROFILE } }));
   }
 
+  /** Raw batch put, for seed scripts only. */
+  async batchPut(items: Item[]): Promise<void> {
+    for (let i = 0; i < items.length; i += 25) {
+      let request: Record<string, { PutRequest: { Item: Item } }[]> | undefined = {
+        [this.t]: items.slice(i, i + 25).map((Item) => ({ PutRequest: { Item } })),
+      };
+      while (request && Object.keys(request).length > 0) {
+        const res = await this.db.doc.send(new BatchWriteCommand({ RequestItems: request }));
+        request = res.UnprocessedItems as typeof request;
+      }
+    }
+  }
+
   private async batchDelete(keys: Item[]): Promise<void> {
     for (let i = 0; i < keys.length; i += 25) {
       let request: Record<string, { DeleteRequest: { Key: Item } }[]> | undefined = {
