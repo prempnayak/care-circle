@@ -1,0 +1,17 @@
+{
+  "name": "@care-circle/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1143.0",
+    "@aws-sdk/client-kms": "^3.1143.0",
+    "@aws-sdk/client-sesv2": "^3.1143.0",
+    "@aws-sdk/client-sqs": "^3.1143.0",
+    "@aws-sdk/lib-dynamodb": "^3.1144.0",
+    "luxon": "^3.7.2",
+    "nodemailer": "^10.0.13",
+    "zod": "^4.6.5"
+  }
+}

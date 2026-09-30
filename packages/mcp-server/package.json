@@ -1,0 +1,22 @@
+{
+  "name": "@care-circle/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "dev": "tsx watch --env-file=../../.env src/main.ts",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@care-circle/core": "*",
+    "@care-circle/workers": "*",
+    "@hono/node-server": "^2.1.3",
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
+    "@modelcontextprotocol/server": "^2.2.0",
+    "aws-jwt-verify": "^5.2.1",
+    "hono": "^4.13.12",
+    "jose": "^6.2.12",
+    "zod": "^4.6.5"
+  }
+}

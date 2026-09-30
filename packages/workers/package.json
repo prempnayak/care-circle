@@ -1,0 +1,14 @@
+{
+  "name": "@care-circle/workers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "start": "tsx src/local.ts"
+  },
+  "dependencies": {
+    "@care-circle/core": "*",
+    "luxon": "^3.7.2"
+  }
+}
