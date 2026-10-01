@@ -22,3 +22,8 @@ playwright-report/
 .vscode/
 .idea/
 .claude/settings.local.json
+
+# Internal working documents (kept local for now; publish selectively later)
+docs/
+CARE_CIRCLE_HANDOFF.md
+CLAUDE.md
