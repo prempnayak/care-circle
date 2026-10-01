@@ -10,3 +10,4 @@ cdk.out/
 .vite/
 tests/load/results/
 packages/dev-auth/.keys/
+apps/simulator/.tokens.json

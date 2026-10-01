@@ -5,10 +5,16 @@
 import { timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { MemoryQueue, resetTable, seedDemo, seedFresh, type Services } from '@care-circle/core';
+import { addDays, localInstant, MemoryQueue, resetTable, seedDemo, seedFresh, todayIn, type Services } from '@care-circle/core';
 import { runScheduledPass } from '@care-circle/workers';
 
-const clockBody = z.union([z.object({ now: z.string().datetime({ offset: true }) }), z.object({ offsetMinutes: z.number() }), z.object({ reset: z.literal(true) })]);
+const clockBody = z.union([
+  z.object({ now: z.string().datetime({ offset: true }) }),
+  z.object({ offsetMinutes: z.number() }),
+  z.object({ reset: z.literal(true) }),
+  // "Tomorrow at 10:35 in New York": a local wall-clock time some days from the clock's current date.
+  z.object({ dayOffset: z.number().int().min(-30).max(30), at: z.string().regex(/^\d{2}:\d{2}$/), tz: z.string() }),
+]);
 
 function keyMatches(expected: string, given: string | undefined): boolean {
   if (!given) return false;
@@ -35,6 +41,10 @@ export function createDevRoutes(services: Services) {
     const body = clockBody.parse(await c.req.json());
     if ('now' in body) adjustableClock.set(new Date(body.now));
     else if ('offsetMinutes' in body) adjustableClock.advance(body.offsetMinutes * 60_000);
+    else if ('dayOffset' in body) {
+      const date = addDays(todayIn(services.clock, body.tz), body.dayOffset);
+      adjustableClock.set(localInstant(date, body.at, body.tz).toJSDate());
+    }
     else adjustableClock.reset();
     return c.json({ now: services.clock.now().toISOString() });
   });
