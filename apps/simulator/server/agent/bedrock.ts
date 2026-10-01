@@ -19,7 +19,8 @@ const MAX_TOOL_CALLS = 4;
 const MAX_HISTORY = 12;
 
 export function loadSkill(): string {
-  return readFileSync(new URL('../../../../skills/care-circle/SKILL.md', import.meta.url), 'utf8').replace(/^---[\s\S]*?---\s*/, '');
+  const path = process.env.SKILL_PATH ?? new URL('../../../../skills/care-circle/SKILL.md', import.meta.url);
+  return readFileSync(path, 'utf8').replace(/^---[\s\S]*?---\s*/, '');
 }
 
 export function toBedrockTools(tools: Tool[]): BedrockTool[] {

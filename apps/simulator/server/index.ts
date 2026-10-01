@@ -23,6 +23,8 @@ export const PERSONAS = [
 export interface SimulatorOptions {
   mcpUrl: string;
   agentPort: number;
+  /** Public URL of this backend (for the OAuth redirect URI); defaults to http://localhost:<agentPort>. */
+  publicUrl?: string;
   uiOrigin: string;
   agentMode: 'scripted' | 'bedrock';
   bedrockModelId?: string;
@@ -39,7 +41,8 @@ const LINK_PROMPT = 'To use that, link your Care Circle account. Use the link bu
 export function createSimulatorApp(opts: SimulatorOptions) {
   const log = opts.log ?? (() => {});
   const apiOrigin = new URL(opts.mcpUrl).origin;
-  const linker = new Linker(opts.mcpUrl, 'simulator', `http://localhost:${opts.agentPort}/link/callback`);
+  const publicUrl = (opts.publicUrl ?? `http://localhost:${opts.agentPort}`).replace(/\/$/, '');
+  const linker = new Linker(opts.mcpUrl, process.env.SIM_CLIENT_ID ?? 'simulator', `${publicUrl}/link/callback`);
   const agent: Agent =
     opts.agentMode === 'bedrock' && opts.bedrockModelId ? new BedrockAgent(opts.bedrockModelId, opts.region) : new ScriptedAgent();
   if (opts.agentMode === 'bedrock' && !opts.bedrockModelId) log('SIM_AGENT=bedrock but BEDROCK_MODEL_ID is empty; using the scripted agent.');

@@ -6,13 +6,14 @@ const port = Number(process.env.SIM_AGENT_PORT ?? 8790);
 const app = createSimulatorApp({
   mcpUrl: process.env.MCP_URL ?? 'http://localhost:8787/mcp',
   agentPort: port,
+  publicUrl: process.env.SIM_AGENT_PUBLIC_URL,
   uiOrigin: (process.env.SIMULATOR_URL ?? 'http://localhost:5174').replace(/\/$/, ''),
   agentMode: process.env.SIM_AGENT === 'bedrock' ? 'bedrock' : 'scripted',
   bedrockModelId: process.env.BEDROCK_MODEL_ID || undefined,
   region: process.env.AWS_REGION,
   devKey: process.env.DEV_KEY,
   devEndpoints: process.env.DEV_ENDPOINTS === 'true',
-  tokenFile: fileURLToPath(new URL('../.tokens.json', import.meta.url)),
+  tokenFile: process.env.SIM_TOKEN_FILE ?? fileURLToPath(new URL('../.tokens.json', import.meta.url)),
   log: (m) => console.log(`[simulator] ${m}`),
 });
 

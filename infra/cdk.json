@@ -1,0 +1,16 @@
+{
+  "app": "npx tsx bin/app.ts",
+  "context": {
+    "demo": false,
+    "lwaLayerVersion": 30,
+    "cognitoDomainPrefix": "care-circle-dev",
+    "mailFrom": "care-circle@example.com",
+    "alexaRedirectUris": [],
+    "publicBaseUrl": "",
+    "dashboardUrl": "",
+    "simulatorUrl": "",
+    "simAgentUrl": "",
+    "bedrockModelId": "",
+    "oauthProxy": false
+  }
+}

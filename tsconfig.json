@@ -6,6 +6,7 @@
     "apps/*/server/**/*",
     "infra/bin/**/*",
     "infra/lib/**/*",
+    "infra/lambda/**/*",
     "scripts/**/*",
     "tests/**/*.ts",
     "vitest.config.ts"
