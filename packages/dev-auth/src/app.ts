@@ -141,7 +141,7 @@ export async function createDevAuthApp(opts: DevAuthOptions) {
     const q = c.req.query();
     const problem = validateAuthorize(q);
     if (problem) return authorizeError(problem);
-    const hidden = ['client_id', 'redirect_uri', 'code_challenge', 'code_challenge_method', 'resource', 'state', 'scope']
+    const hidden = ['client_id', 'redirect_uri', 'response_type', 'code_challenge', 'code_challenge_method', 'resource', 'state', 'scope']
       .map((k) => `<input type="hidden" name="${k}" value="${esc(q[k] ?? '')}">`)
       .join('');
     const buttons = users

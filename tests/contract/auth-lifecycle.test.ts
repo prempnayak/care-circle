@@ -45,6 +45,20 @@ describe('auth lifecycle', () => {
     expect(JSON.stringify(other.body)).not.toContain('Margaret');
   });
 
+  it('the sign-in page form carries every authorize parameter (browser flow)', async () => {
+    const q = {
+      client_id: 'test-client',
+      redirect_uri: 'http://localhost/test-callback',
+      response_type: 'code',
+      code_challenge: 'abc',
+      code_challenge_method: 'S256',
+      resource: h.mcp,
+      state: 's1',
+    };
+    const html = await (await fetch(`${h.issuer}/authorize?${new URLSearchParams(q)}`)).text();
+    for (const [k, v] of Object.entries(q)) expect(html, k).toContain(`name="${k}" value="${v}"`);
+  });
+
   it('a tampered token is rejected', async () => {
     const tom = await link(h, 'dev-tom');
     const [head, payload, sig] = tom.access_token.split('.');

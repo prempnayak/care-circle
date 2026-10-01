@@ -26,7 +26,7 @@ function describe(body: unknown): string {
     if (msg.method === 'resources/read') return `resources/read ${msg.params?.uri}`;
     return msg.method ?? 'response';
   } catch {
-    return 'request';
+    return body ? 'request' : '(open SSE stream)';
   }
 }
 
@@ -45,6 +45,7 @@ export async function connect(mcpUrl: string, accessToken: string | undefined, t
       status: res.status,
       ms: Math.round(performance.now() - started),
       ...(res.status === 401 ? { detail: `WWW-Authenticate: ${res.headers.get('www-authenticate') ?? '(none)'}` } : {}),
+      ...(res.status === 405 && init?.method === 'GET' ? { detail: 'expected: stateless server offers no SSE stream' } : {}),
     });
     return res;
   };

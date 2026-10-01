@@ -29,9 +29,11 @@
     "start:local": "tsx scripts/ensure-env.ts && tsx --env-file=.env scripts/reset-local.ts && npm -w @care-circle/ui-card run build && concurrently -k -n auth,api,dash,sim-ui,sim-agent -c blue,green,magenta,cyan,yellow \"npm -w @care-circle/dev-auth run dev\" \"npm -w @care-circle/mcp-server run dev\" \"npm -w @care-circle/dashboard run dev\" \"npm -w @care-circle/simulator run dev:ui\" \"npm -w @care-circle/simulator run dev:agent\"",
     "test:inspector": "tsx scripts/inspector-check.ts",
     "tokens": "tsx --env-file=.env scripts/mint-tokens.ts",
-    "test:latency": "tsx --env-file=.env scripts/latency.ts"
+    "test:latency": "tsx --env-file=.env scripts/latency.ts",
+    "test:a11y": "tsx scripts/a11y-check.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.0",
     "@types/luxon": "^3.7.6",
     "@types/node": "^22",
@@ -42,6 +44,7 @@
     "concurrently": "^10.0.5",
     "eslint": "^10.11.0",
     "globals": "^17.12.0",
+    "playwright": "^1.63.0",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.0",

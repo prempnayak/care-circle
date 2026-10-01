@@ -69,7 +69,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const [text, setText] = useState('');
-  const [card, setCard] = useState<TurnResult['card'] & { html: string; args: Record<string, unknown> } | null>(null);
+  const [card, setCard] = useState<(TurnResult['card'] & { html: string; args: Record<string, unknown>; seq: number }) | null>(null);
   const [link, setLink] = useState<TurnResult['needsLinking'] | null>(null);
   const [clock, setClock] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +128,7 @@ export function App() {
       if (result.card) {
         const html = await (await fetch(`${AGENT}/card`)).text();
         const call = result.toolCalls.find((t) => t.name === result.card!.toolName);
-        setCard({ ...result.card, html, args: call?.args ?? {} });
+        setCard({ ...result.card, html, args: call?.args ?? {}, seq: Date.now() });
       }
       void refreshPersonas();
     },
@@ -276,15 +276,15 @@ export function App() {
                 </div>
               </div>
             ) : card ? (
-              <CardFrame html={card.html} toolResult={card.toolResult} toolArgs={card.args} />
+              <CardFrame key={card.seq} html={card.html} toolResult={card.toolResult} toolArgs={card.args} />
             ) : (
               <div className="idle">
                 <p className="time">{clockLabel ?? new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
                 <p className="muted">Say “Alexa, tell Care Circle I'm up”.</p>
               </div>
             )}
-            <ol className="transcript" ref={logRef} aria-live="polite" aria-label="Conversation">
-              {(lines[persona] ?? []).slice(-6).map((l, i) => (
+            <ol className="transcript" ref={logRef} aria-live="polite" aria-label="Conversation" tabIndex={0}>
+              {(lines[persona] ?? []).slice(-2).map((l, i) => (
                 <li key={i} className={l.who}>
                   <span className="sr-only">{l.who === 'user' ? `${current?.label ?? 'You'} said: ` : 'Alexa said: '}</span>
                   {l.text}
@@ -354,7 +354,7 @@ export function App() {
         </section>
 
         {showTrace && (
-          <aside className="trace" aria-label="Trace">
+          <aside className="trace" aria-label="Trace" tabIndex={0}>
             <h2>Trace</h2>
             <p className="small muted">Each MCP and OAuth request: what was called, HTTP status, latency.</p>
             <table>
@@ -367,7 +367,7 @@ export function App() {
               </thead>
               <tbody>
                 {trace.map((t, i) => (
-                  <tr key={i} className={`k-${t.kind} ${t.status && t.status >= 400 ? 'bad' : ''}`}>
+                  <tr key={i} className={`k-${t.kind} ${t.status && t.status >= 400 && !t.detail?.startsWith('expected') ? 'bad' : ''}`}>
                     <td>
                       <span className="kind">{t.kind}</span> {t.label}
                       {t.detail && <div className="small muted">{t.detail}</div>}
