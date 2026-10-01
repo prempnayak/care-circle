@@ -51,7 +51,7 @@ const checks: [string, () => boolean][] = [
 
 let failed = 0;
 for (const [name, check] of checks) {
-  let ok = false;
+  let ok: boolean;
   try {
     ok = check();
   } catch {

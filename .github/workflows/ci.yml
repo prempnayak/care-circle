@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+          - 8000:8000
+    env:
+      DDB_ENDPOINT: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests (with core coverage ≥ 80%)
+        run: npm run test:coverage
+      - name: MCP contract tests
+        run: npm run test:contract
+      - name: Voice routing and crisis suites (scripted agent)
+        run: npx tsx scripts/run-voice-suite.ts
+      - name: Build card, dashboard and simulator
+        run: npm run build
