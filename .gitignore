@@ -11,3 +11,14 @@ cdk.out/
 tests/load/results/
 packages/dev-auth/.keys/
 apps/simulator/.tokens.json
+
+# Test and tool output
+test-results/
+playwright-report/
+*.tsbuildinfo
+.tokens.json
+
+# Local editor / assistant settings
+.vscode/
+.idea/
+.claude/settings.local.json
