@@ -22,11 +22,12 @@
     "test": "vitest run --project unit",
     "test:coverage": "vitest run --project unit --coverage",
     "test:contract": "vitest run --project contract",
-    "test:voice": "tsx scripts/run-voice-suite.ts",
+    "test:voice": "tsx --env-file=.env scripts/run-voice-suite.ts",
     "test:load": "k6 run tests/load/tools.k6.js",
     "build": "npm run typecheck && npm -w @care-circle/ui-card run build && npm -w @care-circle/dashboard run build && npm -w @care-circle/simulator run build",
     "cdk": "npm -w @care-circle/infra run cdk --",
-    "start:local": "tsx scripts/ensure-env.ts && tsx --env-file=.env scripts/reset-local.ts && npm -w @care-circle/ui-card run build && concurrently -k -n auth,api,dash,sim-ui,sim-agent -c blue,green,magenta,cyan,yellow \"npm -w @care-circle/dev-auth run dev\" \"npm -w @care-circle/mcp-server run dev\" \"npm -w @care-circle/dashboard run dev\" \"npm -w @care-circle/simulator run dev:ui\" \"npm -w @care-circle/simulator run dev:agent\""
+    "start:local": "tsx scripts/ensure-env.ts && tsx --env-file=.env scripts/reset-local.ts && npm -w @care-circle/ui-card run build && concurrently -k -n auth,api,dash,sim-ui,sim-agent -c blue,green,magenta,cyan,yellow \"npm -w @care-circle/dev-auth run dev\" \"npm -w @care-circle/mcp-server run dev\" \"npm -w @care-circle/dashboard run dev\" \"npm -w @care-circle/simulator run dev:ui\" \"npm -w @care-circle/simulator run dev:agent\"",
+    "test:inspector": "tsx scripts/inspector-check.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",

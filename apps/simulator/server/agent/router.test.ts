@@ -35,3 +35,13 @@ describe('scripted router against tests/voice/utterances.json', () => {
     expect(r).toMatchObject({ kind: 'tool', name: 'check_in', args: { note: 'I fell this morning' } });
   });
 });
+
+describe('scripted router against tests/voice/crisis.json', () => {
+  const crisis = JSON.parse(readFileSync(new URL('../../../../tests/voice/crisis.json', import.meta.url), 'utf8')) as {
+    crisis: { text: string }[];
+  };
+  it.each(crisis.crisis)('routes "$text" to a tool that runs the crisis matcher', ({ text }) => {
+    const r = route(text);
+    expect(r.kind === 'tool' && ['check_in', 'message_circle'].includes(r.name)).toBe(true);
+  });
+});

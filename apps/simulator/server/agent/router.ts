@@ -36,7 +36,7 @@ function mood(t: string): 'good' | 'okay' | 'not_great' | undefined {
 }
 
 const CRISIS_HINT =
-  /\b(fell|fallen|fall|slipped|tripped|can'?t get up|hurt|bleeding|chest|breath|breathe|hit my head|stroke|die|dying|kill|suicid|end my life|harm myself|no reason to live)\b/;
+  /\b(fell|fallen|fall|slipped|tripped|can'?t get up|hurt\w*|bleed\w*|chest|breath\w*|hit my head|stroke|die|dying|dead|kill\w*|suicid\w*|end my life|end it all|harm\w* myself|no reason to live)\b/;
 
 /** Words that mean "the person's own statement for the family" rather than a command. */
 function isStatementForFamily(t: string): boolean {
