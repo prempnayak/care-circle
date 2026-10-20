@@ -3,6 +3,8 @@
 > **Ask the human before any `cdk deploy`.** It creates billable resources (Cognito Essentials, Lambda,
 > API Gateway, DynamoDB, KMS, SQS, SES, CloudFront, EventBridge Scheduler, Secrets Manager in demo mode).
 > After recording, run `npm run cdk -- destroy --all`.
+>
+> **Step-by-step guide: [DEPLOY.md](DEPLOY.md).**
 
 ## Stacks
 

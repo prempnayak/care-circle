@@ -8,8 +8,9 @@ const url = process.env.TARGET_URL ?? 'http://localhost:8787/mcp';
 const N = Number(process.env.N ?? 100);
 const CONCURRENCY = Number(process.env.CONCURRENCY ?? 10);
 
-const recipient = await devToken('dev-margaret');
-const caregiver = await devToken('dev-sarah');
+// Cloud: pass TOKEN_RECIPIENT / TOKEN_CAREGIVER (Cognito access tokens). Local: minted from dev-auth.
+const recipient = process.env.TOKEN_RECIPIENT ?? (await devToken('dev-margaret'));
+const caregiver = process.env.TOKEN_CAREGIVER ?? (await devToken('dev-sarah'));
 const calls: [string, Record<string, unknown>, string | null][] = [
   ['care_circle_help', {}, null],
   ['get_status', {}, caregiver],

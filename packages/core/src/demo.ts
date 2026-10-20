@@ -37,9 +37,21 @@ export async function seedFresh(store: CareStore): Promise<void> {
   await store.upsertProfile(DEMO_PEOPLE.sarah.sub, { firstName: 'Sarah', email: DEMO_PEOPLE.sarah.email });
 }
 
-export async function seedDemo(store: CareStore, clock: Clock, crypto: Crypto): Promise<{ circleId: string }> {
+export interface DemoPerson {
+  sub: string;
+  firstName: string;
+  email: string;
+}
+
+/** `people` lets the cloud seed use real Cognito users (their `sub`s) instead of the local dev users. */
+export async function seedDemo(
+  store: CareStore,
+  clock: Clock,
+  crypto: Crypto,
+  people: { margaret: DemoPerson; sarah: DemoPerson; tom: DemoPerson } = DEMO_PEOPLE,
+): Promise<{ circleId: string }> {
   const now = clock.now();
-  const { margaret, sarah, tom } = DEMO_PEOPLE;
+  const { margaret, sarah, tom } = people;
   const meta: CircleMeta = {
     circleId: DEMO_CIRCLE_ID,
     recipientSub: margaret.sub,

@@ -1,4 +1,4 @@
-import { RemovalPolicy, Stack, type StackProps } from 'aws-cdk-lib';
+import { CfnOutput, RemovalPolicy, Stack, type StackProps } from 'aws-cdk-lib';
 import { AttributeType, BillingMode, ProjectionType, Table, TableEncryption } from 'aws-cdk-lib/aws-dynamodb';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import type { Construct } from 'constructs';
@@ -39,5 +39,7 @@ export class DataStack extends Stack {
       sortKey: { name: 'GSI2SK', type: AttributeType.STRING },
       projectionType: ProjectionType.ALL,
     });
+    new CfnOutput(this, 'TableName', { value: this.table.tableName });
+    new CfnOutput(this, 'DataKeyArn', { value: this.key.keyArn });
   }
 }

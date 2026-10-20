@@ -57,6 +57,8 @@ export function createDevRoutes(services: Services) {
   });
 
   app.post('/reset', async (c) => {
+    // Dropping the table is for DynamoDB Local only; in AWS the table belongs to CDK.
+    if (!config.DDB_ENDPOINT) return c.json({ error: 'reset_is_local_only' }, 400);
     adjustableClock?.reset();
     await resetTable(store.db);
     const which = c.req.query('seed') ?? 'demo';

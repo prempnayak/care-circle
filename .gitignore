@@ -27,3 +27,4 @@ playwright-report/
 docs/
 CARE_CIRCLE_HANDOFF.md
 CLAUDE.md
+infra/cdk-outputs.json

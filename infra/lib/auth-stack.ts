@@ -1,4 +1,4 @@
-import { Duration, RemovalPolicy, Stack, type StackProps } from 'aws-cdk-lib';
+import { CfnOutput, Duration, RemovalPolicy, Stack, type StackProps } from 'aws-cdk-lib';
 import {
   AccountRecovery,
   FeaturePlan,
@@ -109,5 +109,11 @@ export class AuthStack extends Stack {
     this.clientIds = [alexa.userPoolClientId, simulator.userPoolClientId, dashboard.userPoolClientId];
     this.simulatorClientId = simulator.userPoolClientId;
     this.dashboardClientId = dashboard.userPoolClientId;
+
+    new CfnOutput(this, 'UserPoolId', { value: this.userPool.userPoolId });
+    new CfnOutput(this, 'CognitoDomain', { value: this.cognitoDomain });
+    new CfnOutput(this, 'AlexaClientId', { value: alexa.userPoolClientId, description: 'Secret: Cognito console → App clients → alexa' });
+    new CfnOutput(this, 'SimulatorClientId', { value: simulator.userPoolClientId });
+    new CfnOutput(this, 'DashboardClientId', { value: dashboard.userPoolClientId });
   }
 }
