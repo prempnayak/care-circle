@@ -53,11 +53,11 @@ await page.getByRole('heading', { name: "Margaret's circle" }).waitFor();
 await page.getByRole('heading', { name: 'Last 14 days' }).waitFor();
 await audit(page, 'dashboard timeline');
 if (shots) await page.screenshot({ path: `${imgDir}dashboard-timeline.png`, fullPage: false });
-for (const tab of ['Medicines', 'Family and codes', 'Email alerts', 'Check-in window', 'Account']) {
-  await page.getByRole('tab', { name: tab }).click();
+for (const tab of ['Medicines', 'Family', 'Email alerts', 'Check-in window', 'Account']) {
+  await page.getByRole('tab', { name: tab, exact: true }).click();
   await page.waitForTimeout(300);
   await audit(page, `dashboard ${tab.toLowerCase()}`);
-  if (shots && tab === 'Family and codes') {
+  if (shots && tab === 'Family') {
     await page.getByRole('button', { name: 'Code for a family member' }).click();
     await page.getByText('Join code').waitFor();
     await page.screenshot({ path: `${imgDir}dashboard-codes.png` });

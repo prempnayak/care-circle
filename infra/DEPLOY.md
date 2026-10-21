@@ -145,7 +145,7 @@ Pick **one** of the following.
 
 ### 8A. Live setup (records J1 for real)
 1. **Dashboard** → *Sign in* → Cognito page → *Sign up* as Sarah (`you+sarah@…`, given name "Sarah") → enter the emailed code → you're back on the dashboard.
-2. *Create a circle* for Margaret (`America/New_York`, 07:00–10:00, grace 30) → **Medicines**: metformin 08:00 (nickname "diabetes pill"), lisinopril 09:00 ("blood pressure pill") → **Family and codes** → *Code for Margaret* (write it down) and *Code for a family member*.
+2. *Create a circle* for Margaret (`America/New_York`, 07:00–10:00, grace 30) → **Medicines**: metformin 08:00 (nickname "diabetes pill"), lisinopril 09:00 ("blood pressure pill") → **Family** → *Code for Margaret* (write it down) and *Code for a family member*.
 3. **Simulator** → persona *Margaret* → "Alexa, tell Care Circle my code is ######" → 401 → **Link account** → in the popup *Sign up* as Margaret (`you+margaret@…`, given name "Margaret") → back in the simulator the call retries → read-back → say "yes".
 4. Persona *Tom* → same with the family-member code → sign up as Tom.
 

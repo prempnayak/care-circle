@@ -3,7 +3,7 @@ import { CardFrame } from './CardFrame';
 
 const AGENT = (import.meta.env.VITE_AGENT_URL ?? 'http://localhost:8790').replace(/\/$/, '');
 const MAILPIT = import.meta.env.VITE_MAILPIT_URL ?? 'http://localhost:8025';
-const DEMO_TZ = 'America/New_York';
+const DEFAULT_TZ = 'America/New_York';
 
 interface Persona {
   id: string;
@@ -36,6 +36,30 @@ interface TurnResult {
 interface Line {
   who: 'user' | 'alexa';
   text: string;
+  tools?: { name: string; ok: boolean }[];
+}
+
+const SUGGESTIONS: Record<string, string[]> = {
+  margaret: [
+    "Tell Care Circle I'm up. A bit tired today.",
+    'What pills do I have this morning?',
+    'I took the metformin',
+    "Tell the family I'm going to the park",
+    'Tell Care Circle I fell this morning',
+    'How much metformin should I take?',
+    'Pause sharing',
+  ],
+  sarah: ["Ask Care Circle how Mom's doing", "How was Mom's week?", 'What can you do?'],
+  tom: ["Ask Care Circle how Mom's doing", "How was Mom's week?", 'What can you do?'],
+  new: ['What can you do?', 'My code is 482159'],
+};
+
+/** "America/New_York" → "New York". */
+const city = (tz: string) => tz.split('/').pop()!.replace(/_/g, ' ');
+
+function greeting(d: Date, tz: string): string {
+  const h = Number(d.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: tz }));
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
 type SpeechRecognitionCtor = new () => {
@@ -61,7 +85,9 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export function App() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [persona, setPersona] = useState('margaret');
-  const [config, setConfig] = useState<{ agent: string; devControls: boolean } | null>(null);
+  const [config, setConfig] = useState<{ agent: string; devControls: boolean; tz?: string } | null>(null);
+  const [panel, setPanel] = useState<'conversation' | 'trace'>('conversation');
+  const [now, setNow] = useState(() => new Date());
   const [lines, setLines] = useState<Record<string, Line[]>>({});
   const [trace, setTrace] = useState<TraceEntry[]>([]);
   const [showTrace, setShowTrace] = useState(true);
@@ -74,6 +100,13 @@ export function App() {
   const [clock, setClock] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const logRef = useRef<HTMLOListElement>(null);
+  const convoRef = useRef<HTMLOListElement>(null);
+  const tz = config?.tz ?? DEFAULT_TZ;
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 15_000);
+    return () => clearInterval(t);
+  }, []);
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
 
@@ -106,8 +139,10 @@ export function App() {
   }, [refreshPersonas, refreshClock]);
 
   useEffect(() => {
-    logRef.current?.lastElementChild?.scrollIntoView({ block: 'end' });
-  }, [lines, persona]);
+    logRef.current?.lastElementChild?.scrollIntoView({ block: 'nearest' });
+    const c = convoRef.current;
+    if (c) c.scrollTop = c.scrollHeight;
+  }, [lines, persona, panel]);
 
   const speak = (s: string) => {
     if (mutedRef.current || !('speechSynthesis' in window)) return;
@@ -122,7 +157,7 @@ export function App() {
   const handleResult = useCallback(
     async (id: string, result: TurnResult) => {
       setTrace((t) => [...result.trace, ...t].slice(0, 200));
-      addLine(id, { who: 'alexa', text: result.reply });
+      addLine(id, { who: 'alexa', text: result.reply, tools: result.toolCalls.map((t) => ({ name: t.name, ok: !t.isError })) });
       speak(result.reply);
       setLink(result.needsLinking ?? null);
       if (result.card) {
@@ -205,9 +240,10 @@ export function App() {
   };
 
   const current = personas.find((p) => p.id === persona);
-  const clockLabel = clock
-    ? new Date(clock).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: DEMO_TZ, timeZoneName: 'short' })
-    : null;
+  const shown = clock ? new Date(clock) : now;
+  const timeLabel = shown.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+  const dateLabel = shown.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
+  const convo = lines[persona] ?? [];
 
   return (
     <div className="layout">
@@ -216,22 +252,30 @@ export function App() {
           Care Circle <span className="muted">· Alexa+ simulator</span>
         </h1>
         <div className="row">
-          {config && <span className="badge">agent: {config.agent}</span>}
-          {clockLabel && <span className="badge">demo clock: {clockLabel}</span>}
+          {config && (
+            <span className="badge" title="Which agent picks the tools: scripted rules, or a Bedrock model">
+              Agent: {config.agent}
+            </span>
+          )}
+          <span className="badge" title={tz}>
+            {clock ? 'Demo clock' : 'Clock'}: {city(tz)} time
+          </span>
           <button onClick={() => setMuted((m) => !m)} aria-pressed={muted}>
-            {muted ? 'Unmute' : 'Mute'}
+            {muted ? '🔇 Unmute' : '🔊 Mute'}
           </button>
           <button onClick={() => setShowTrace((s) => !s)} aria-pressed={showTrace}>
-            {showTrace ? 'Hide trace' : 'Show trace'}
+            {showTrace ? 'Hide side panel' : 'Show side panel'}
           </button>
         </div>
       </header>
 
-      <nav className="personas" aria-label="Personas">
+      <nav className="personas" aria-label="Who is talking">
+        <span className="muted label">Who's talking:</span>
         {personas.map((p) => (
           <button
             key={p.id}
             className={p.id === persona ? 'persona active' : 'persona'}
+            aria-pressed={p.id === persona}
             onClick={() => {
               setPersona(p.id);
               setLink(null);
@@ -243,12 +287,24 @@ export function App() {
             <span className="sr-only">{p.linked ? ' (linked)' : ' (not linked)'}</span>
           </button>
         ))}
-        {current?.linked && (
-          <button className="link-btn" onClick={() => void post('/unlink', { persona }).then(refreshPersonas)}>
-            Unlink {current.label}
-          </button>
-        )}
       </nav>
+      {current && (
+        <p className="persona-hint">
+          {current.hint}.{' '}
+          {current.linked ? (
+            <>
+              <span className="ok">Account linked.</span>{' '}
+              <button className="link" onClick={() => void post('/unlink', { persona }).then(refreshPersonas)}>
+                Unlink
+              </button>
+            </>
+          ) : current.id === 'new' ? (
+            'Not linked yet.'
+          ) : (
+            "Not linked yet: say something and Alexa will ask to link."
+          )}
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="error">
@@ -268,29 +324,50 @@ export function App() {
                 </div>
                 <div>
                   <h2>Link your account</h2>
-                  <p>Care Circle needs you to sign in. On a real device this happens in the Alexa app.</p>
+                  <p>Care Circle needs {current?.label ?? 'you'} to sign in once. On a real Echo Show this happens in the Alexa app.</p>
                   <button className="primary" onClick={() => window.open(link.authorizeUrl, 'care-circle-link', 'width=560,height=720')}>
                     Link account
                   </button>
-                  <p className="small muted">Auth server: {link.issuer}</p>
+                  <p className="small muted">Sign-in page: {new URL(link.issuer).host}</p>
                 </div>
               </div>
             ) : card ? (
               <CardFrame key={card.seq} html={card.html} toolResult={card.toolResult} toolArgs={card.args} />
             ) : (
               <div className="idle">
-                <p className="time">{clockLabel ?? new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
-                <p className="muted">Say “Alexa, tell Care Circle I'm up”.</p>
+                <p className="greet">
+                  {greeting(shown, tz)}
+                  {current && current.id !== 'new' ? `, ${current.label}` : ''}
+                </p>
+                <p className="time">{timeLabel}</p>
+                <p className="muted">
+                  {dateLabel} · {city(tz)}
+                </p>
               </div>
             )}
-            <ol className="transcript" ref={logRef} aria-live="polite" aria-label="Conversation" tabIndex={0}>
-              {(lines[persona] ?? []).slice(-2).map((l, i) => (
+            {busy && (
+              <div className="thinking" role="status">
+                <span className="ring" aria-hidden="true" /> Alexa is thinking…
+              </div>
+            )}
+            {/* Caption-style: only the latest line on screen; the side panel keeps the whole conversation. */}
+            <ol className="transcript" ref={logRef} aria-label="Latest line" aria-live="polite">
+              {convo.slice(-1).map((l, i) => (
                 <li key={i} className={l.who}>
                   <span className="sr-only">{l.who === 'user' ? `${current?.label ?? 'You'} said: ` : 'Alexa said: '}</span>
                   {l.text}
                 </li>
               ))}
             </ol>
+          </div>
+
+          <div className="suggestions" aria-label="Try saying">
+            <span className="label">Try saying:</span>
+            {(SUGGESTIONS[persona] ?? []).map((s) => (
+              <button key={s} className="chip" onClick={() => void send(s)} disabled={busy}>
+                {s}
+              </button>
+            ))}
           </div>
 
           <form
@@ -300,7 +377,7 @@ export function App() {
               void send(text);
             }}
           >
-            <button type="button" className={listening ? 'mic on' : 'mic'} onClick={listen} aria-label="Speak" disabled={busy}>
+            <button type="button" className={listening ? 'mic on' : 'mic'} onClick={listen} aria-label={listening ? 'Listening' : 'Speak'} disabled={busy}>
               {listening ? '●' : '🎤'}
             </button>
             <label htmlFor="utterance" className="sr-only">
@@ -310,7 +387,7 @@ export function App() {
               id="utterance"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={persona === 'margaret' ? "Alexa, tell Care Circle I'm up" : "Alexa, ask Care Circle how Mom's doing"}
+              placeholder={persona === 'margaret' ? "Type what Margaret says, e.g. I'm up" : "Type what they say, e.g. How's Mom doing?"}
               autoComplete="off"
             />
             <button className="primary" disabled={busy || !text.trim()}>
@@ -318,26 +395,13 @@ export function App() {
             </button>
           </form>
 
-          <div className="suggestions" aria-label="Try saying">
-            {(persona === 'margaret'
-              ? ["Tell Care Circle I'm up. A bit tired today.", 'What pills do I have this morning?', 'I took the metformin', 'Tell Care Circle I fell this morning', 'How much metformin should I take?', 'Pause sharing']
-              : persona === 'new'
-                ? ['What can you do?', 'My code is 482159']
-                : ["Ask Care Circle how Mom's doing", "How was Mom's week?", 'What can you do?']
-            ).map((s) => (
-              <button key={s} className="chip" onClick={() => void send(s)} disabled={busy}>
-                {s}
-              </button>
-            ))}
-          </div>
-
           {config?.devControls && (
             <div className="demo" aria-label="Demo controls">
               <strong>Demo controls</strong>
-              <button onClick={() => void dev('clock', { dayOffset: 0, at: '08:35', tz: DEMO_TZ })} disabled={busy}>
+              <button onClick={() => void dev('clock', { dayOffset: 0, at: '08:35', tz })} disabled={busy}>
                 Today 8:35 am
               </button>
-              <button onClick={() => void dev('clock', { dayOffset: 1, at: '10:35', tz: DEMO_TZ })} disabled={busy}>
+              <button onClick={() => void dev('clock', { dayOffset: 1, at: '10:35', tz })} disabled={busy}>
                 Jump to tomorrow 10:35
               </button>
               <button onClick={() => void dev('sweep')} disabled={busy}>
@@ -354,30 +418,73 @@ export function App() {
         </section>
 
         {showTrace && (
-          <aside className="trace" aria-label="Trace" tabIndex={0}>
-            <h2>Trace</h2>
-            <p className="small muted">Each MCP and OAuth request: what was called, HTTP status, latency.</p>
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Request</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">ms</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trace.map((t, i) => (
-                  <tr key={i} className={`k-${t.kind} ${t.status && t.status >= 400 && !t.detail?.startsWith('expected') ? 'bad' : ''}`}>
-                    <td>
-                      <span className="kind">{t.kind}</span> {t.label}
-                      {t.detail && <div className="small muted">{t.detail}</div>}
-                    </td>
-                    <td>{t.status ?? ''}</td>
-                    <td>{t.ms ?? ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <aside className="side" aria-label="Side panel">
+            <div className="seg" role="tablist" aria-label="Side panel view">
+              <button role="tab" aria-selected={panel === 'conversation'} className={panel === 'conversation' ? 'on' : ''} onClick={() => setPanel('conversation')}>
+                Conversation
+              </button>
+              <button role="tab" aria-selected={panel === 'trace'} className={panel === 'trace' ? 'on' : ''} onClick={() => setPanel('trace')}>
+                Trace{trace.length > 0 ? ` (${trace.length})` : ''}
+              </button>
+            </div>
+            {panel === 'conversation' ? (
+              <div role="tabpanel" aria-label="Conversation">
+                <p className="small muted">Everything {current?.label ?? 'this person'} and Alexa said, and which Care Circle tools ran.</p>
+                {convo.length === 0 ? (
+                  <p className="empty">Nothing yet. Pick a “Try saying” button or type below the screen.</p>
+                ) : (
+                  <ol className="convo" ref={convoRef} tabIndex={0} aria-label="Conversation history">
+                    {convo.map((l, i) => (
+                      <li key={i} className={l.who}>
+                        <span className="who">{l.who === 'user' ? current?.label ?? 'You' : 'Alexa'}</span>
+                        <span>{l.text}</span>
+                        {l.tools && l.tools.length > 0 && (
+                          <span className="tools">
+                            {l.tools.map((t, j) => (
+                              <code key={j} className={t.ok ? 'tool' : 'tool bad'}>
+                                {t.name}
+                                {t.ok ? ' ✓' : ' ✕'}
+                              </code>
+                            ))}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            ) : (
+              <div role="tabpanel" aria-label="Trace" className="trace" tabIndex={0}>
+                <p className="small muted">Each MCP and OAuth request: what was called, the HTTP status, and how long it took.</p>
+                {trace.length === 0 ? (
+                  <p className="empty">No requests yet. Say something to see the calls to the Care Circle server.</p>
+                ) : (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">Request</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" className="num">
+                          ms
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trace.map((t, i) => (
+                        <tr key={i} className={`k-${t.kind} ${t.status && t.status >= 400 && !t.detail?.startsWith('expected') ? 'bad' : ''}`}>
+                          <td>
+                            <span className="kind">{t.kind}</span> {t.label}
+                            {t.detail && <div className="small muted">{t.detail}</div>}
+                          </td>
+                          <td>{t.status ?? ''}</td>
+                          <td className="num">{t.ms ?? ''}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
           </aside>
         )}
       </div>

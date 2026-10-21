@@ -88,7 +88,14 @@ export function createSimulatorApp(opts: SimulatorOptions) {
   app.use('*', cors({ origin: [opts.uiOrigin], allowMethods: ['GET', 'POST', 'OPTIONS'] }));
 
   app.get('/config', (c) =>
-    c.json({ agent: agent.name, devControls: opts.devEndpoints && Boolean(opts.devKey), personas: PERSONAS, mcpUrl: opts.mcpUrl }),
+    c.json({
+      agent: agent.name,
+      devControls: opts.devEndpoints && Boolean(opts.devKey),
+      personas: PERSONAS,
+      mcpUrl: opts.mcpUrl,
+      // The demo circle's time zone, so the Echo Show clock matches the times Care Circle speaks.
+      tz: process.env.SIM_TZ ?? 'America/New_York',
+    }),
   );
 
   app.get('/personas', (c) =>

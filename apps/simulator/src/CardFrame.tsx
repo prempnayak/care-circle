@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
 
 /**
@@ -6,8 +6,23 @@ import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/
  * an AppBridge over postMessage, then the tool input and the tool result. The card renders only from
  * the tool result's structuredContent, so it can't disagree with what was spoken.
  */
+/** The card is laid out for an Echo Show screen; draw it at that size and scale it to fit. */
+const DEVICE = { w: 1024, h: 600 };
+
 export function CardFrame({ html, toolResult, toolArgs }: { html: string; toolResult: unknown; toolArgs: Record<string, unknown> }) {
   const ref = useRef<HTMLIFrameElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const fit = () => setScale(Math.min(el.clientWidth / DEVICE.w, el.clientHeight / DEVICE.h));
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const iframe = ref.current;
@@ -31,5 +46,16 @@ export function CardFrame({ html, toolResult, toolArgs }: { html: string; toolRe
     };
   }, [html, toolResult, toolArgs]);
 
-  return <iframe ref={ref} title="Care Circle card" className="card-frame" sandbox="allow-scripts" srcDoc={html} />;
+  return (
+    <div className="card-box" ref={box}>
+      <iframe
+        ref={ref}
+        title="Care Circle card"
+        className="card-frame"
+        sandbox="allow-scripts"
+        srcDoc={html}
+        style={{ width: DEVICE.w, height: DEVICE.h, transform: `scale(${scale})` }}
+      />
+    </div>
+  );
 }

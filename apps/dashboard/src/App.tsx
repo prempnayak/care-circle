@@ -5,9 +5,9 @@ import { AccountPage, AlertsPage, CreateCirclePage, MedicationsPage, MembersPage
 
 type Tab = 'timeline' | 'medications' | 'members' | 'alerts' | 'settings' | 'account';
 const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [
-  { id: 'timeline', label: 'Timeline' },
+  { id: 'timeline', label: 'Overview' },
   { id: 'medications', label: 'Medicines' },
-  { id: 'members', label: 'Family and codes' },
+  { id: 'members', label: 'Family' },
   { id: 'alerts', label: 'Email alerts' },
   { id: 'settings', label: 'Check-in window', adminOnly: true },
   { id: 'account', label: 'Account' },
@@ -56,13 +56,27 @@ export function App() {
 
   if (!me) {
     return (
-      <Shell>
-        <h1>Care Circle</h1>
-        <p className="lead">Daily check-ins and a simple medicine log, shared with the family.</p>
-        {error && <p role="alert" className="error">{error}</p>}
-        <button className="primary" onClick={() => void signIn()}>
-          Sign in
-        </button>
+      <Shell header={<div className="topbar"><span className="brand">Care Circle</span></div>}>
+        <section className="hero">
+          <h1>Know Mom's morning went fine, without calling to check.</h1>
+          <p className="lead">Daily check-ins and a simple medicine log by voice on Alexa, shared with the family.</p>
+          <ul className="steps">
+            <li>
+              <strong>She talks to Alexa.</strong> “I'm up.” “I took my blood pressure pill.”
+            </li>
+            <li>
+              <strong>You see it here</strong>, and ask Alexa “How's Mom today?”
+            </li>
+            <li>
+              <strong>If a check-in or medicine is missed</strong>, the family gets an email.
+            </li>
+          </ul>
+          {error && <p role="alert" className="error">{error}</p>}
+          <button className="primary big-btn" onClick={() => void signIn()}>
+            Sign in
+          </button>
+          <p className="hint">New here? Choose “Sign up” on the next page.</p>
+        </section>
         <Footer />
       </Shell>
     );
@@ -75,11 +89,12 @@ export function App() {
     <Shell
       header={
         <div className="topbar">
-          <span>
-            Signed in as <strong>{me.firstName ?? 'you'}</strong>
-            {role ? ` · ${role === 'admin' ? 'lead caregiver' : role === 'member' ? 'family member' : 'the person Care Circle looks after'}` : ''}
+          <span className="brand">Care Circle</span>
+          <span className="who">
+            <strong>{me.firstName ?? 'You'}</strong>
+            {role ? ` · ${role === 'admin' ? 'lead caregiver' : role === 'member' ? 'family member' : 'Care Circle looks after you'}` : ''}
           </span>
-          <button
+          <button className="small"
             onClick={() => {
               setMe(null);
               void signOutEverywhere();

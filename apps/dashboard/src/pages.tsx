@@ -17,8 +17,48 @@ function time(iso: string | null, tz: string): string {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
 }
 
-function dateLabel(date: string): string {
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+/** A calendar date (YYYY-MM-DD, already in the circle's time zone). */
+function dayLabel(date: string, style: 'short' | 'long' = 'short'): string {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: style, month: style, day: 'numeric', timeZone: 'UTC' });
+}
+
+/** The date of an instant, in the circle's time zone (not UTC). */
+function shortDate(iso: string, tz: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: tz });
+}
+
+/** "08:00" → "8:00 AM". */
+export function hm(t: string): string {
+  const [h, m] = t.split(':').map(Number) as [number, number];
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
+/** "America/New_York" → "New York time (Eastern Daylight Time)". */
+export function tzName(tz: string): string {
+  const city = tz.split('/').pop()!.replace(/_/g, ' ');
+  const long = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'long' }).formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value;
+  return long ? `${city} time (${long})` : `${city} time`;
+}
+
+const TIME_ZONES: string[] = (() => {
+  try {
+    return (Intl as unknown as { supportedValuesOf: (k: string) => string[] }).supportedValuesOf('timeZone');
+  } catch {
+    return ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'];
+  }
+})();
+
+function TimeZoneInput({ id, defaultValue }: { id: string; defaultValue: string }) {
+  return (
+    <>
+      <input id={id} name="tz" list={`${id}-list`} required defaultValue={defaultValue} autoComplete="off" />
+      <datalist id={`${id}-list`}>
+        {TIME_ZONES.map((z) => (
+          <option key={z} value={z} />
+        ))}
+      </datalist>
+    </>
+  );
 }
 
 function useLoad<T>(fn: () => Promise<T>, deps: unknown[]) {
@@ -75,7 +115,7 @@ export function CreateCirclePage({ onCreated }: { onCreated: () => void }) {
         <label htmlFor="name">Their first name</label>
         <input id="name" name="name" required maxLength={40} autoComplete="off" />
         <label htmlFor="tz">Time zone</label>
-        <input id="tz" name="tz" required defaultValue={guessTz} />
+        <TimeZoneInput id="tz" defaultValue={guessTz} />
         <fieldset>
           <legend>Morning check-in window</legend>
           <label htmlFor="start">From</label>
@@ -94,84 +134,188 @@ export function CreateCirclePage({ onCreated }: { onCreated: () => void }) {
   );
 }
 
-// ---------------------------------------------------------------- timeline
+// ---------------------------------------------------------------- overview (today + history)
+
+const MAX_MESSAGES = 5;
 
 export function TimelinePage({ circle }: { circle: Circle }) {
   const { data, error } = useLoad(() => api<Timeline>(`/circles/${circle.circleId}/timeline?days=14`), [circle.circleId]);
+  const [allMessages, setAllMessages] = useState(false);
   if (error) return <p role="alert" className="error">{error}</p>;
   if (!data) return <p role="status">Loading…</p>;
+  const [today, ...history] = data.days;
+  const name = circle.recipientFirstName;
+  const messages = allMessages ? data.messages : data.messages.slice(0, MAX_MESSAGES);
   return (
     <>
-      <h2>Last 14 days</h2>
-      <p className="hint">Notes and messages appear only here, never read aloud to family members.</p>
-      {data.messages.length > 0 && (
-        <div className="card">
-          <h3>Messages</h3>
-          <ul className="plain">
-            {data.messages.map((m) => (
+      <p className="tz-note">
+        All times are {name}'s time: <strong>{tzName(data.tz)}</strong>.
+      </p>
+      {today && <TodayCard day={today} tz={data.tz} circle={circle} />}
+
+      <section className="card" aria-labelledby="msg-h">
+        <h2 id="msg-h">Messages from {name}</h2>
+        <p className="hint">Notes and messages appear only here, never read aloud to family members.</p>
+        {data.messages.length === 0 ? (
+          <p className="empty">No messages in the last 14 days.</p>
+        ) : (
+          <ul className="messages">
+            {messages.map((m) => (
               <li key={m.at}>
-                <strong>{dateLabel(m.at.slice(0, 10))}, {time(m.at, data.tz)}:</strong> “{m.text}”{m.crisis && <span className="flag"> Urgent wording</span>}
+                <span className="when">{shortDate(m.at, data.tz)}, {time(m.at, data.tz)}</span>
+                <span className="text">“{m.text}”</span>
+                {m.crisis && <span className="pill bad">Urgent wording</span>}
               </li>
             ))}
           </ul>
-        </div>
-      )}
-      <ol className="days">
-        {data.days.map((d) => (
-          <li key={d.date} className="card">
-            <h3>{dateLabel(d.date)}</h3>
-            <p>
-              <strong>Check-in: </strong>
-              {d.checkIn?.status === 'done'
-                ? `${time(d.checkIn.at, data.tz)}${d.checkIn.mood ? `, ${MOOD[d.checkIn.mood]}` : ''}`
-                : d.checkIn?.status === 'missed'
-                  ? 'Missed'
-                  : 'Not yet'}
-              {d.checkIn?.crisis && <span className="flag"> Urgent wording</span>}
-            </p>
-            {d.checkIn?.note && <p className="note">Note: “{d.checkIn.note}”</p>}
-            {d.doses.length > 0 && (
-              <table>
-                <caption className="sr-only">Medicines on {dateLabel(d.date)}</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Medicine</th>
-                    <th scope="col">Time</th>
-                    <th scope="col">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.doses.map((dose) => (
-                    <tr key={`${dose.name}-${dose.time}`}>
-                      <td>{dose.name}</td>
-                      <td>{dose.time}</td>
-                      <td className={`status-${dose.status}`}>
-                        {STATUS[dose.status]}
-                        {dose.loggedAt ? ` at ${time(dose.loggedAt, data.tz)}` : ''}
-                        {dose.late ? ' (late)' : ''}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </li>
-        ))}
-      </ol>
+        )}
+        {data.messages.length > MAX_MESSAGES && (
+          <button className="link" onClick={() => setAllMessages((v) => !v)}>
+            {allMessages ? 'Show fewer' : `Show all ${data.messages.length} messages`}
+          </button>
+        )}
+      </section>
+
+      <section className="card" aria-labelledby="hist-h">
+        <h2 id="hist-h">Last 14 days</h2>
+        <table className="history">
+          <caption className="sr-only">Check-ins and medicines by day, newest first</caption>
+          <thead>
+            <tr>
+              <th scope="col">Day</th>
+              <th scope="col">Check-in</th>
+              <th scope="col">Medicines</th>
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((d) => (
+              <tr key={d.date}>
+                <th scope="row">{dayLabel(d.date)}</th>
+                <td>
+                  <CheckInPill day={d} tz={data.tz} />
+                  {d.checkIn?.note && <div className="note">“{d.checkIn.note}”</div>}
+                </td>
+                <td>
+                  {d.doses.length === 0 ? (
+                    <span className="muted">—</span>
+                  ) : (
+                    <ul className="pills">
+                      {d.doses.map((dose) => (
+                        <li key={`${dose.name}-${dose.time}`}>
+                          <DosePill dose={dose} tz={data.tz} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
       {data.alerts.length > 0 && (
-        <div className="card">
-          <h3>Emails sent</h3>
-          <ul className="plain">
-            {data.alerts.map((a, i) => (
+        <section className="card" aria-labelledby="alerts-h">
+          <h2 id="alerts-h">Emails sent to the family</h2>
+          <ul className="messages">
+            {data.alerts.slice(0, 10).map((a, i) => (
               <li key={i}>
-                {ALERT_NAMES[a.type] ?? a.type}: {a.status}
-                {a.sentAt ? `, ${dateLabel(a.sentAt.slice(0, 10))} ${time(a.sentAt, data.tz)}` : ''}
+                <span className="when">{a.sentAt ? `${shortDate(a.sentAt, data.tz)}, ${time(a.sentAt, data.tz)}` : 'Waiting to send'}</span>
+                <span className="text">{ALERT_NAMES[a.type] ?? a.type}</span>
+                {a.status !== 'sent' && <span className="pill">{a.status}</span>}
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       )}
     </>
+  );
+}
+
+type Day = Timeline['days'][number];
+type Dose = Day['doses'][number];
+
+function TodayCard({ day, tz, circle }: { day: Day; tz: string; circle: Circle }) {
+  const logged = day.doses.filter((d) => d.status === 'taken' || d.status === 'skipped').length;
+  const ci = day.checkIn;
+  const window = `${hm(circle.window.start)}–${hm(circle.window.end)}`;
+  return (
+    <section className="card today" aria-labelledby="today-h">
+      <h2 id="today-h">Today · {dayLabel(day.date, 'long')}</h2>
+      <div className="tiles">
+        <div className={`tile ${ci?.status === 'done' ? 'ok' : ci?.status === 'missed' ? 'bad' : 'wait'}`}>
+          <h3>Check-in</h3>
+          {ci?.status === 'done' ? (
+            <p className="big">
+              <span aria-hidden="true">✓ </span>Checked in at {time(ci.at, tz)}
+            </p>
+          ) : ci?.status === 'missed' ? (
+            <p className="big">
+              <span aria-hidden="true">! </span>No check-in this morning
+            </p>
+          ) : (
+            <p className="big">Not yet</p>
+          )}
+          <p className="sub">
+            {ci?.mood ? `Feeling: ${MOOD[ci.mood]}` : `Check-in window ${window}`}
+            {ci?.crisis && <span className="pill bad">Urgent wording</span>}
+          </p>
+          {ci?.note && <p className="note">“{ci.note}”</p>}
+        </div>
+        <div className={`tile ${day.doses.length === 0 ? '' : logged === day.doses.length ? 'ok' : day.doses.some((d) => d.status === 'missed') ? 'bad' : 'wait'}`}>
+          <h3>Medicines</h3>
+          {day.doses.length === 0 ? (
+            <p className="big">None scheduled</p>
+          ) : (
+            <>
+              <p className="big">
+                {logged} of {day.doses.length} logged
+              </p>
+              <ul className="pills">
+                {day.doses.map((dose) => (
+                  <li key={`${dose.name}-${dose.time}`}>
+                    <DosePill dose={dose} tz={tz} />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CheckInPill({ day, tz }: { day: Day; tz: string }) {
+  const ci = day.checkIn;
+  if (ci?.status === 'done')
+    return (
+      <span className="pill ok">
+        <span aria-hidden="true">✓ </span>
+        {time(ci.at, tz)}
+        {ci.mood ? ` · ${MOOD[ci.mood]}` : ''}
+        {ci.crisis ? ' · Urgent wording' : ''}
+      </span>
+    );
+  if (ci?.status === 'missed')
+    return (
+      <span className="pill bad">
+        <span aria-hidden="true">✕ </span>Missed
+      </span>
+    );
+  return <span className="muted">—</span>;
+}
+
+function DosePill({ dose, tz }: { dose: Dose; tz: string }) {
+  const cls = dose.status === 'taken' || dose.status === 'skipped' ? 'ok' : dose.status === 'missed' ? 'bad' : 'wait';
+  const icon = cls === 'ok' ? '✓ ' : cls === 'bad' ? '✕ ' : '○ ';
+  const detail = dose.loggedAt ? `${STATUS[dose.status]} ${time(dose.loggedAt, tz)}${dose.late ? ', late' : ''}` : STATUS[dose.status];
+  return (
+    <span className={`pill ${cls}`} title={`${dose.name} at ${hm(dose.time)}: ${detail}`}>
+      <span aria-hidden="true">{icon}</span>
+      {dose.name} {hm(dose.time)}
+      <span className="sr-only">: {detail}</span>
+    </span>
   );
 }
 
@@ -237,10 +381,10 @@ export function MedicationsPage({ circle, canEdit }: { circle: Circle; canEdit: 
               <tr key={m.medId}>
                 <td>{m.displayName}</td>
                 <td>{m.aliases.join(', ') || '—'}</td>
-                <td>{m.times.join(', ')}</td>
+                <td>{m.times.map(hm).join(', ')}</td>
                 {canEdit && (
                   <td>
-                    <button onClick={() => void remove(m.medId)} aria-label={`Remove ${m.displayName}`}>
+                    <button className="small" onClick={() => void remove(m.medId)} aria-label={`Remove ${m.displayName}`}>
                       Remove
                     </button>
                   </td>
@@ -298,10 +442,11 @@ export function MembersPage({ circle, me, onChange }: { circle: Circle; me: Me; 
         <ul className="plain">
           {data.map((m) => (
             <li key={m.sub}>
-              <strong>{m.firstName}</strong> — {m.role === 'admin' ? 'lead caregiver' : m.role === 'member' ? 'family member' : 'the person Care Circle looks after'}
-              {m.consentAt && <span className="hint"> · joined {new Date(m.consentAt).toLocaleDateString()}</span>}
+              <strong>{m.firstName}</strong>
+              <span className="pill">{m.role === 'admin' ? 'Lead caregiver' : m.role === 'member' ? 'Family member' : 'Care Circle looks after'}</span>
+              {m.consentAt && <span className="hint">Joined {new Date(m.consentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
               {isAdmin && m.sub !== me.sub && (
-                <button onClick={() => void remove(m.sub)} aria-label={`Remove ${m.firstName}`}>
+                <button className="small push" onClick={() => void remove(m.sub)} aria-label={`Remove ${m.firstName}`}>
                   Remove
                 </button>
               )}
@@ -404,12 +549,22 @@ export function SettingsPage({ circle, onSaved }: { circle: Circle; onSaved: () 
   return (
     <form onSubmit={submit} className="card">
       <h2>Check-in window</h2>
+      <p className="hint">
+        If {circle.recipientFirstName} hasn't checked in by the end of the window, Care Circle waits the extra minutes below, then emails the family.
+      </p>
       <label htmlFor="s-tz">Time zone</label>
-      <input id="s-tz" name="tz" defaultValue={circle.tz} required />
-      <label htmlFor="s-start">From</label>
-      <input id="s-start" name="start" type="time" defaultValue={circle.window.start} required />
-      <label htmlFor="s-end">Until</label>
-      <input id="s-end" name="end" type="time" defaultValue={circle.window.end} required />
+      <TimeZoneInput id="s-tz" defaultValue={circle.tz} />
+      <p className="hint">Now: {tzName(circle.tz)}. Every time on this dashboard and in Alexa's replies uses it.</p>
+      <div className="two">
+        <div>
+          <label htmlFor="s-start">From</label>
+          <input id="s-start" name="start" type="time" defaultValue={circle.window.start} required />
+        </div>
+        <div>
+          <label htmlFor="s-end">Until</label>
+          <input id="s-end" name="end" type="time" defaultValue={circle.window.end} required />
+        </div>
+      </div>
       <label htmlFor="s-grace">Minutes to wait before emailing</label>
       <input id="s-grace" name="grace" type="number" min={0} max={180} defaultValue={circle.graceMin} required />
       {msg && <p role="status">{msg}</p>}
