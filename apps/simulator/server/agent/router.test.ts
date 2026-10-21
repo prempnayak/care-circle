@@ -25,6 +25,16 @@ describe('scripted router against tests/voice/utterances.json', () => {
     expect(accuracy, misses.join('\n')).toBeGreaterThanOrEqual(0.9);
   });
 
+  it('keeps the whole message when the text has a curly apostrophe (macOS smart quotes)', () => {
+    expect(route('Tell the family I’m going to the park')).toEqual({
+      kind: 'tool',
+      name: 'message_circle',
+      args: { message: 'I’m going to the park' },
+    });
+    expect(route("Tell my family I'm going to the park")).toMatchObject({ args: { message: "I'm going to the park" } });
+    expect(route('Let Sarah know I’ll be out at noon')).toMatchObject({ args: { message: 'I’ll be out at noon' } });
+  });
+
   it('handles yes/no for confirmations', () => {
     expect(route('Yes').kind).toBe('yes');
     expect(route('no thanks').kind).toBe('no');

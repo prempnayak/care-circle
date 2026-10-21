@@ -11,7 +11,9 @@ const CONCURRENCY = Number(process.env.CONCURRENCY ?? 10);
 // Cloud: pass TOKEN_RECIPIENT / TOKEN_CAREGIVER (Cognito access tokens). Local: minted from dev-auth.
 const recipient = process.env.TOKEN_RECIPIENT ?? (await devToken('dev-margaret'));
 const caregiver = process.env.TOKEN_CAREGIVER ?? (await devToken('dev-sarah'));
-const calls: [string, Record<string, unknown>, string | null][] = [
+// TOOLS=get_status,log_dose limits the run (e.g. skip check_in against real cloud data).
+const only = process.env.TOOLS?.split(',').map((t) => t.trim());
+const allCalls: [string, Record<string, unknown>, string | null][] = [
   ['care_circle_help', {}, null],
   ['get_status', {}, caregiver],
   ['get_week_summary', { days: 7 }, caregiver],
@@ -19,6 +21,7 @@ const calls: [string, Record<string, unknown>, string | null][] = [
   ['check_in', { mood: 'good' }, recipient],
   ['log_dose', { medication_name: 'aspirin', status: 'taken' }, recipient],
 ];
+const calls = only ? allCalls.filter(([tool]) => only.includes(tool)) : allCalls;
 
 const pct = (xs: number[], p: number) => xs[Math.min(xs.length - 1, Math.ceil((p / 100) * xs.length) - 1)]!;
 let worstP95 = 0;

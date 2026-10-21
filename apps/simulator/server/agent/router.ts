@@ -114,7 +114,7 @@ export function route(utterance: string): Route {
 
   // Messages: "tell my family I need groceries", "send a message to my kids saying …", "let Sarah know I'll be out".
   const msg =
-    /^(?:please\s+)?(?:tell|message|text|let)\s+(?:my\s+)?(family|kids|children|daughter|son|sarah|tom|everyone|them|\w+)\s+(?:know\s+)?(?:that\s+)?(.+)$/.exec(t) ??
+    /^(?:please\s+)?(?:tell|message|text|let)\s+(?:my\s+|the\s+|our\s+)?(family|kids|children|daughter|son|sarah|tom|everyone|them|\w+)\s+(?:know\s+)?(?:that\s+)?(.+)$/.exec(t) ??
     /^(?:send|leave)\s+(?:a\s+)?(?:message|note)\s+(?:to\s+(?:my\s+)?\w+\s+)?(?:saying\s+|that\s+)?(.+)$/.exec(t);
   if (msg) {
     const body = (msg[2] ?? msg[1])!.trim();
@@ -123,7 +123,8 @@ export function route(utterance: string): Route {
       const m = mood(body);
       return { kind: 'tool', name: 'check_in', args: m ? { mood: m } : {} };
     }
-    return { kind: 'tool', name: 'message_circle', args: { message: raw.slice(raw.toLowerCase().indexOf(body)).slice(0, 140) } };
+    // `t` is `raw` lowercased with curly apostrophes straightened (same length), so find the body in `t`.
+    return { kind: 'tool', name: 'message_circle', args: { message: raw.slice(t.lastIndexOf(body)).slice(0, 140) } };
   }
 
   // Check-in: "I'm up", "good morning", "check in", "I'm awake. A bit tired today."
