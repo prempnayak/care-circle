@@ -164,6 +164,33 @@ export function createSimulatorApp(opts: SimulatorOptions) {
     return c.json(result);
   });
 
+  // MCP Apps host: the card asks to call a server tool (tap-to-log). Only tools the card is
+  // allowed to use are forwarded, with the persona's own token, exactly as a voice turn would.
+  const CARD_TOOLS = new Set(['log_dose']);
+  app.post('/card-tool', async (c) => {
+    const { persona: id, name, arguments: args } = (await c.req.json()) as { persona: string; name: string; arguments?: Record<string, unknown> };
+    if (!PERSONAS.some((p) => p.id === id)) return c.json({ error: 'unknown persona' }, 400);
+    if (!CARD_TOOLS.has(name)) return c.json({ error: 'tool not available to the card' }, 403);
+    const persona = state(id);
+    const trace: TraceEntry[] = [{ at: new Date().toISOString(), kind: 'card', label: `${id} tapped the card: ${name}` }];
+    if (persona.tokens && persona.tokens.expiresAt - 30_000 < Date.now()) {
+      persona.tokens = (await linker.refresh(persona.tokens, trace)) ?? undefined;
+      persist();
+    }
+    try {
+      const conn = await connect(opts.mcpUrl, persona.tokens?.accessToken, trace);
+      try {
+        const { raw } = await conn.call(name, args ?? {});
+        return c.json({ result: raw, trace });
+      } finally {
+        await conn.close();
+      }
+    } catch (err) {
+      const text = err instanceof NeedsLinking ? 'Link your account first.' : "I couldn't reach Care Circle just now. Try again in a minute.";
+      return c.json({ result: { isError: true, content: [{ type: 'text', text }] }, trace });
+    }
+  });
+
   app.get('/link/start', async (c) => {
     const id = c.req.query('persona') ?? '';
     if (!PERSONAS.some((p) => p.id === id)) return c.text('unknown persona', 400);

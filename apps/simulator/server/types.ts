@@ -1,6 +1,6 @@
 export interface TraceEntry {
   at: string;
-  kind: 'mcp' | 'oauth' | 'agent' | 'dev';
+  kind: 'mcp' | 'oauth' | 'agent' | 'dev' | 'card';
   label: string;
   status?: number;
   ms?: number;

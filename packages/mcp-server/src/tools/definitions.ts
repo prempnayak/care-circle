@@ -38,7 +38,17 @@ export const cardDataSchema = z.object({
     at: z.string().optional(),
     mood: z.enum(MOODS).optional(),
   }),
-  doses: z.array(z.object({ name: z.string(), time: z.string(), status: z.enum(['open', 'taken', 'skipped', 'missed']) })),
+  doses: z.array(
+    z.object({
+      name: z.string(),
+      time: z.string(),
+      status: z.enum(['open', 'taken', 'skipped', 'missed']),
+      /** Present when the viewer can log doses from the card (tap-to-log). */
+      doseId: z.string().optional(),
+    }),
+  ),
+  /** True only on the cared-for person's own card: the card may offer tap-to-log. */
+  canLog: z.boolean().optional(),
 });
 export type CardData = z.infer<typeof cardDataSchema>;
 

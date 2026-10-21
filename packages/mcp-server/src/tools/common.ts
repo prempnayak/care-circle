@@ -78,7 +78,15 @@ export function doseLabel(dose: Pick<Dose, 'name' | 'time'>): string {
 }
 
 /** Card data: rendered by the MCP App card from the same structuredContent the speech came from. */
-export function buildCard(circle: CircleSnapshot, date: string, checkIn: CheckIn | undefined, doses: Dose[], now: Date): CardData {
+export function buildCard(
+  circle: CircleSnapshot,
+  date: string,
+  checkIn: CheckIn | undefined,
+  doses: Dose[],
+  now: Date,
+  opts: { canLog?: boolean } = {},
+): CardData {
+  const canLog = Boolean(opts.canLog) && !circle.paused;
   let status: CardData['checkIn']['status'] = 'open';
   if (checkIn?.status === 'done') status = 'done';
   else if (checkIn?.status === 'missed') status = 'missed';
@@ -95,7 +103,8 @@ export function buildCard(circle: CircleSnapshot, date: string, checkIn: CheckIn
       ...(checkIn?.at ? { at: spokenAt(checkIn.at, circle.tz) } : {}),
       ...(checkIn?.mood ? { mood: checkIn.mood } : {}),
     },
-    doses: doses.map((d) => ({ name: d.name, time: scheduleTime(d.time), status: d.status })),
+    doses: doses.map((d) => ({ name: d.name, time: scheduleTime(d.time), status: d.status, ...(canLog ? { doseId: d.doseId } : {}) })),
+    ...(canLog ? { canLog: true } : {}),
   };
 }
 

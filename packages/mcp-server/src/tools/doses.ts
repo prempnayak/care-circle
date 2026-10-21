@@ -52,7 +52,7 @@ export async function getTodaysDoses(ctx: ToolContext, input: ToolInput<'get_tod
     speech,
     date,
     doses: ordered.map((d) => ({ doseId: d.doseId, name: d.name, time: d.time, status: d.status })),
-    today: buildCard(circle, date, day.checkIn, day.doses, clock.now()),
+    today: buildCard(circle, date, day.checkIn, day.doses, clock.now(), { canLog: true }),
   });
 }
 

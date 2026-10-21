@@ -1,6 +1,7 @@
 /**
  * Renders the card from the tool's structuredContent.today, the same data the speech came from,
- * so the card and the voice reply can never disagree. Read-only in the MVP.
+ * so the card and the voice reply can never disagree. On the cared-for person's own card
+ * (`canLog`), open doses get a "Log it" button that calls the same log_dose tool as the voice command.
  */
 export interface CardData {
   recipientName: string;
@@ -8,7 +9,8 @@ export interface CardData {
   dateLabel: string;
   paused: boolean;
   checkIn: { status: 'done' | 'open' | 'missed'; at?: string; mood?: 'good' | 'okay' | 'not_great' };
-  doses: { name: string; time: string; status: 'open' | 'taken' | 'skipped' | 'missed' }[];
+  doses: { name: string; time: string; status: 'open' | 'taken' | 'skipped' | 'missed'; doseId?: string }[];
+  canLog?: boolean;
 }
 
 const MOOD: Record<string, string> = { good: 'feeling good', okay: 'feeling okay', not_great: 'not feeling great' };
@@ -49,15 +51,24 @@ export function renderCard(data: CardData): string {
       : `<ul aria-label="Today's medicines">${data.doses
           .map(
             (d) =>
-              `<li aria-label="${esc(d.name)} at ${esc(timeLabel(d.time))}: ${DOSE_STATUS[d.status]}"><span>${esc(d.name)} · ${esc(
-                timeLabel(d.time),
-              )}</span><span class="status ${d.status}">${DOSE_STATUS[d.status]}</span></li>`,
+              `<li><span>${esc(d.name)} · ${esc(timeLabel(d.time))}</span><span class="right"><span class="status ${d.status}">${
+                DOSE_STATUS[d.status]
+              }</span>${
+                data.canLog && d.doseId && (d.status === 'open' || d.status === 'missed')
+                  ? `<button class="log" data-dose-id="${esc(d.doseId)}" aria-label="Log ${esc(d.name)} at ${esc(timeLabel(d.time))}">Log it</button>`
+                  : ''
+              }</span></li>`,
           )
           .join('')}</ul>`;
   return `<h1>${name}</h1><p class="date">${esc(data.dateLabel)}</p>
 <section aria-label="Check-in"><h2>Check-in</h2><p>${checkIn}</p></section>
-<section aria-label="Medicines"><h2>Medicines</h2>${doses}</section>
+<section aria-label="Medicines"><h2>Medicines</h2>${doses}<p class="said" role="status"></p></section>
 <p class="footer">Care Circle is not an emergency service. In an emergency, call 911.</p>`;
+}
+
+/** The card after a dose was logged from it. */
+export function withLogged(data: CardData, doseId: string, status: 'taken' | 'skipped' = 'taken'): CardData {
+  return { ...data, doses: data.doses.map((d) => (d.doseId === doseId ? { ...d, status } : d)) };
 }
 
 /** Pull card data out of a tool result's structuredContent, if present. */

@@ -167,6 +167,22 @@ describe('doses (J3)', () => {
     expect(r.speech).toContain('Logged lisinopril');
   });
 
+  it('gives the cared-for person a card that can log (tap-to-log), with dose IDs that log_dose accepts', async () => {
+    const list = await call(margaret, 'get_todays_doses', {});
+    const today = list.out.today as { canLog?: boolean; doses: { name: string; doseId?: string }[] };
+    expect(today.canLog).toBe(true);
+    const tapped = today.doses.find((d) => d.name === 'metformin')!.doseId!;
+    const r = await call(margaret, 'log_dose', { dose_id: tapped, status: 'taken' });
+    expect(r.speech).toContain('Logged metformin');
+  });
+
+  it('never gives a caregiver a card that can log', async () => {
+    const r = await call(sarah, 'get_status', {});
+    const today = r.out.today as { canLog?: boolean; doses: { doseId?: string }[] };
+    expect(today.canLog).toBeUndefined();
+    expect(today.doses.every((d) => d.doseId === undefined)).toBe(true);
+  });
+
   it('reads back several doses and logs them only after confirm', async () => {
     const first = await call(margaret, 'log_dose', { part_of_day: 'morning', status: 'taken' });
     expect(first.out.step).toBe('confirm');

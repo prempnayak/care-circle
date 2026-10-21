@@ -4,12 +4,29 @@ import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/
 /**
  * Hosts the MCP App card (ui://care-circle/today) the way an MCP Apps host does: a sandboxed iframe,
  * an AppBridge over postMessage, then the tool input and the tool result. The card renders only from
- * the tool result's structuredContent, so it can't disagree with what was spoken.
+ * the tool result's structuredContent, so it can't disagree with what was spoken. Tool calls from the
+ * card (tap-to-log) go through `oncalltool` to the host, which forwards them with the persona's token.
  */
 /** The card is laid out for an Echo Show screen; draw it at that size and scale it to fit. */
 const DEVICE = { w: 1024, h: 600 };
 
-export function CardFrame({ html, toolResult, toolArgs }: { html: string; toolResult: unknown; toolArgs: Record<string, unknown> }) {
+type CallToolParams = Parameters<NonNullable<AppBridge['oncalltool']>>[0];
+type CallToolResult = Awaited<ReturnType<NonNullable<AppBridge['oncalltool']>>>;
+
+export function CardFrame({
+  html,
+  toolResult,
+  toolArgs,
+  onCallTool,
+}: {
+  html: string;
+  toolResult: unknown;
+  toolArgs: Record<string, unknown>;
+  /** The card asked to call a server tool (tap-to-log); the host forwards it. */
+  onCallTool?: (params: CallToolParams) => Promise<CallToolResult>;
+}) {
+  const callRef = useRef(onCallTool);
+  callRef.current = onCallTool;
   const ref = useRef<HTMLIFrameElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -31,7 +48,11 @@ export function CardFrame({ html, toolResult, toolArgs }: { html: string; toolRe
     const onLoad = async () => {
       const win = iframe.contentWindow;
       if (!win) return;
-      bridge = new AppBridge(null, { name: 'Care Circle simulator (Echo Show)', version: '0.1.0' }, {});
+      bridge = new AppBridge(null, { name: 'Care Circle simulator (Echo Show)', version: '0.1.0' }, { serverTools: {} });
+      bridge.oncalltool = async (params) => {
+        if (!callRef.current) return { isError: true, content: [{ type: 'text', text: 'Not available here.' }] };
+        return callRef.current(params);
+      };
       bridge.oninitialized = () => {
         void bridge!
           .sendToolInput({ arguments: toolArgs })

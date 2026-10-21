@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { CardFrame } from "./CardFrame";
-import { Icon } from "./icons";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { CardFrame } from './CardFrame';
+import { Icon } from './icons';
 
-const AGENT = (
-  import.meta.env.VITE_AGENT_URL ?? "http://localhost:8790"
-).replace(/\/$/, "");
-const MAILPIT = import.meta.env.VITE_MAILPIT_URL ?? "http://localhost:8025";
-const DEFAULT_TZ = "America/New_York";
+const AGENT = (import.meta.env.VITE_AGENT_URL ?? 'http://localhost:8790').replace(/\/$/, '');
+const MAILPIT = import.meta.env.VITE_MAILPIT_URL ?? 'http://localhost:8025';
+const DEFAULT_TZ = 'America/New_York';
 
 interface Persona {
   id: string;
@@ -42,7 +40,7 @@ interface TurnResult {
   trace: TraceEntry[];
 }
 interface Line {
-  who: "user" | "alexa";
+  who: 'user' | 'alexa';
   text: string;
   tools?: { name: string; ok: boolean }[];
 }
@@ -50,34 +48,24 @@ interface Line {
 const SUGGESTIONS: Record<string, string[]> = {
   margaret: [
     "Tell Care Circle I'm up. A bit tired today.",
-    "What pills do I have this morning?",
-    "I took the metformin",
+    'What pills do I have this morning?',
+    'I took the metformin',
     "Tell the family I'm going to the park",
-    "Tell Care Circle I fell this morning",
-    "How much metformin should I take?",
-    "Pause sharing",
+    'Tell Care Circle I fell this morning',
+    'How much metformin should I take?',
+    'Pause sharing',
   ],
-  sarah: [
-    "Ask Care Circle how Mom's doing",
-    "How was Mom's week?",
-    "What can you do?",
-  ],
-  tom: [
-    "Ask Care Circle how Mom's doing",
-    "How was Mom's week?",
-    "What can you do?",
-  ],
-  new: ["What can you do?", "My code is 482159"],
+  sarah: ["Ask Care Circle how Mom's doing", "How was Mom's week?", 'What can you do?'],
+  tom: ["Ask Care Circle how Mom's doing", "How was Mom's week?", 'What can you do?'],
+  new: ['What can you do?', 'My code is 482159'],
 };
 
 /** "America/New_York" → "New York". */
-const city = (tz: string) => tz.split("/").pop()!.replace(/_/g, " ");
+const city = (tz: string) => tz.split('/').pop()!.replace(/_/g, ' ');
 
 function greeting(d: Date, tz: string): string {
-  const h = Number(
-    d.toLocaleString("en-US", { hour: "numeric", hour12: false, timeZone: tz }),
-  );
-  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+  const h = Number(d.toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: tz }));
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
 type SpeechRecognitionCtor = new () => {
@@ -100,8 +88,8 @@ function recognizer(): SpeechRecognitionCtor | null {
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${AGENT}${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   return (await res.json()) as T;
@@ -109,13 +97,13 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
 export function App() {
   const [personas, setPersonas] = useState<Persona[]>([]);
-  const [persona, setPersona] = useState("margaret");
+  const [persona, setPersona] = useState('margaret');
   const [config, setConfig] = useState<{
     agent: string;
     devControls: boolean;
     tz?: string;
   } | null>(null);
-  const [panel, setPanel] = useState<"conversation" | "trace">("conversation");
+  const [panel, setPanel] = useState<'conversation' | 'trace'>('conversation');
   const [now, setNow] = useState(() => new Date());
   const [lines, setLines] = useState<Record<string, Line[]>>({});
   const [trace, setTrace] = useState<TraceEntry[]>([]);
@@ -123,16 +111,16 @@ export function App() {
   const [muted, setMuted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
-  const [text, setText] = useState("");
+  const [text, setText] = useState('');
   const [card, setCard] = useState<
-    | (TurnResult["card"] & {
+    | (TurnResult['card'] & {
         html: string;
         args: Record<string, unknown>;
         seq: number;
       })
     | null
   >(null);
-  const [link, setLink] = useState<TurnResult["needsLinking"] | null>(null);
+  const [link, setLink] = useState<TurnResult['needsLinking'] | null>(null);
   const [clock, setClock] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const logRef = useRef<HTMLOListElement>(null);
@@ -148,9 +136,7 @@ export function App() {
 
   const refreshPersonas = useCallback(async () => {
     try {
-      setPersonas(
-        (await (await fetch(`${AGENT}/personas`)).json()) as Persona[],
-      );
+      setPersonas((await (await fetch(`${AGENT}/personas`)).json()) as Persona[]);
     } catch {
       setError(`Can't reach the simulator agent at ${AGENT}. Is it running?`);
     }
@@ -173,33 +159,30 @@ export function App() {
         setConfig(c);
         if (c.devControls) void refreshClock();
       })
-      .catch(() =>
-        setError(`Can't reach the simulator agent at ${AGENT}. Is it running?`),
-      );
+      .catch(() => setError(`Can't reach the simulator agent at ${AGENT}. Is it running?`));
   }, [refreshPersonas, refreshClock]);
 
   useEffect(() => {
-    logRef.current?.lastElementChild?.scrollIntoView({ block: "nearest" });
+    logRef.current?.lastElementChild?.scrollIntoView({ block: 'nearest' });
     const c = convoRef.current;
     if (c) c.scrollTop = c.scrollHeight;
   }, [lines, persona, panel]);
 
   const speak = (s: string) => {
-    if (mutedRef.current || !("speechSynthesis" in window)) return;
+    if (mutedRef.current || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(s);
     u.rate = 0.95;
     window.speechSynthesis.speak(u);
   };
 
-  const addLine = (id: string, line: Line) =>
-    setLines((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), line] }));
+  const addLine = (id: string, line: Line) => setLines((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), line] }));
 
   const handleResult = useCallback(
     async (id: string, result: TurnResult) => {
       setTrace((t) => [...result.trace, ...t].slice(0, 200));
       addLine(id, {
-        who: "alexa",
+        who: 'alexa',
         text: result.reply,
         tools: result.toolCalls.map((t) => ({ name: t.name, ok: !t.isError })),
       });
@@ -207,9 +190,7 @@ export function App() {
       setLink(result.needsLinking ?? null);
       if (result.card) {
         const html = await (await fetch(`${AGENT}/card`)).text();
-        const call = result.toolCalls.find(
-          (t) => t.name === result.card!.toolName,
-        );
+        const call = result.toolCalls.find((t) => t.name === result.card!.toolName);
         setCard({
           ...result.card,
           html,
@@ -228,17 +209,14 @@ export function App() {
       if (!said || busy) return;
       setBusy(true);
       setError(null);
-      addLine(persona, { who: "user", text: said });
+      addLine(persona, { who: 'user', text: said });
       try {
-        await handleResult(
-          persona,
-          await post<TurnResult>("/turn", { persona, text: said }),
-        );
+        await handleResult(persona, await post<TurnResult>('/turn', { persona, text: said }));
       } catch {
-        setError("The simulator agent did not answer.");
+        setError('The simulator agent did not answer.');
       } finally {
         setBusy(false);
-        setText("");
+        setText('');
       }
     },
     [busy, persona, handleResult],
@@ -247,64 +225,77 @@ export function App() {
   // After linking in the popup, retry the utterance that got the 401 (as Alexa does).
   useEffect(() => {
     const onMessage = async (e: MessageEvent) => {
-      if (
-        e.origin !== new URL(AGENT).origin ||
-        (e.data as { type?: string })?.type !== "care-circle-linked"
-      )
-        return;
+      if (e.origin !== new URL(AGENT).origin || (e.data as { type?: string })?.type !== 'care-circle-linked') return;
       const id = (e.data as { persona: string }).persona;
       setLink(null);
       await refreshPersonas();
       setBusy(true);
       try {
-        await handleResult(
-          id,
-          await post<TurnResult>("/turn", { persona: id, retry: true }),
-        );
+        await handleResult(id, await post<TurnResult>('/turn', { persona: id, retry: true }));
       } finally {
         setBusy(false);
       }
     };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
   }, [refreshPersonas, handleResult]);
+
+  // The card asked the host to call a tool (tap-to-log). Forward it with this persona's token and
+  // show it in the conversation like a voice turn, so the side panel and trace stay complete.
+  const cardTool = useCallback(
+    async (params: { name: string; arguments?: Record<string, unknown> }) => {
+      const id = persona;
+      addLine(id, { who: 'user', text: '(tapped “Log it” on the screen)' });
+      const out = await post<{ result: { isError?: boolean; content?: { type: string; text?: string }[] }; trace: TraceEntry[] }>('/card-tool', {
+        persona: id,
+        name: params.name,
+        arguments: params.arguments ?? {},
+      });
+      const speech = out.result.content?.find((c) => c.type === 'text')?.text ?? '';
+      setTrace((t) => [...out.trace, ...t].slice(0, 200));
+      addLine(id, { who: 'alexa', text: speech, tools: [{ name: params.name, ok: !out.result.isError }] });
+      speak(speech);
+      return out.result as never;
+    },
+    [persona],
+  );
 
   const listen = () => {
     const Ctor = recognizer();
     if (!Ctor) {
-      setError("Voice input needs Chrome. You can type instead.");
+      setError('Voice input needs Chrome. You can type instead.');
       return;
     }
     const rec = new Ctor();
-    rec.lang = "en-US";
+    rec.lang = 'en-US';
     rec.interimResults = false;
-    rec.onresult = (e) => void send(e.results[0]?.[0].transcript ?? "");
+    rec.onresult = (e) => void send(e.results[0]?.[0].transcript ?? '');
     rec.onend = () => setListening(false);
     rec.onerror = () => setListening(false);
     setListening(true);
     rec.start();
   };
 
-  const dev = async (action: string, body: unknown = {}, query = "") => {
+  const dev = async (action: string, body: unknown = {}, query = '') => {
     setBusy(true);
     try {
       const res = await fetch(`${AGENT}/dev/${action}${query}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
       const out = await res.json();
       setTrace((t) => [
         {
           at: new Date().toISOString(),
-          kind: "dev",
+          kind: 'dev',
           label: `demo control: ${action}`,
           status: res.status,
           detail: JSON.stringify(out).slice(0, 160),
         },
         ...t,
       ]);
-      if (action === "reset") {
+      if (action === 'reset') {
         setLines({});
         setCard(null);
       }
@@ -316,15 +307,15 @@ export function App() {
 
   const current = personas.find((p) => p.id === persona);
   const shown = clock ? new Date(clock) : now;
-  const timeLabel = shown.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
+  const timeLabel = shown.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
     timeZone: tz,
   });
-  const dateLabel = shown.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
+  const dateLabel = shown.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
     timeZone: tz,
   });
   const convo = lines[persona] ?? [];
@@ -339,31 +330,28 @@ export function App() {
         </div>
         <div className="row">
           {config && (
-            <span
-              className="tag"
-              title="Which agent picks the tools: scripted rules, or a Bedrock model"
-            >
+            <span className="tag" title="Which agent picks the tools: scripted rules, or a Bedrock model">
               Agent · {config.agent}
             </span>
           )}
           <span className="tag" title={tz}>
-            {clock ? "Demo clock" : "Clock"} · {city(tz)}
+            {clock ? 'Demo clock' : 'Clock'} · {city(tz)}
           </span>
           <button
             className="icon"
             onClick={() => setMuted((m) => !m)}
             aria-pressed={!muted}
             aria-label="Read replies aloud"
-            title={muted ? "Replies are silent" : "Replies are read aloud"}
+            title={muted ? 'Replies are silent' : 'Replies are read aloud'}
           >
-            <Icon name={muted ? "volumeOff" : "volume"} />
+            <Icon name={muted ? 'volumeOff' : 'volume'} />
           </button>
           <button
             className="icon"
             onClick={() => setShowTrace((s) => !s)}
             aria-pressed={showTrace}
             aria-label="Side panel"
-            title={showTrace ? "Hide side panel" : "Show side panel"}
+            title={showTrace ? 'Hide side panel' : 'Show side panel'}
           >
             <Icon name="panel" />
           </button>
@@ -375,7 +363,7 @@ export function App() {
           {personas.map((p) => (
             <button
               key={p.id}
-              className={p.id === persona ? "seg-btn on" : "seg-btn"}
+              className={p.id === persona ? 'seg-btn on' : 'seg-btn'}
               aria-pressed={p.id === persona}
               onClick={() => {
                 setPersona(p.id);
@@ -384,16 +372,11 @@ export function App() {
               title={p.hint}
             >
               <span className="avatar" aria-hidden="true">
-                {p.id === "new" ? "+" : p.label[0]}
+                {p.id === 'new' ? '+' : p.label[0]}
               </span>
               {p.label}
-              <span
-                className={p.linked ? "dot on" : "dot"}
-                aria-hidden="true"
-              />
-              <span className="sr-only">
-                {p.linked ? " (linked)" : " (not linked)"}
-              </span>
+              <span className={p.linked ? 'dot on' : 'dot'} aria-hidden="true" />
+              <span className="sr-only">{p.linked ? ' (linked)' : ' (not linked)'}</span>
             </button>
           ))}
         </div>
@@ -403,20 +386,12 @@ export function App() {
             {current.linked ? (
               <>
                 <span className="tag ok">Linked</span>
-                <button
-                  className="sm"
-                  onClick={() =>
-                    void post("/unlink", { persona }).then(refreshPersonas)
-                  }
-                >
+                <button className="sm" onClick={() => void post('/unlink', { persona }).then(refreshPersonas)}>
                   Unlink
                 </button>
               </>
             ) : (
-              <span
-                className="tag"
-                title="Say something and Alexa will ask to link"
-              >
+              <span className="tag" title="Say something and Alexa will ask to link">
                 Not linked
               </span>
             )}
@@ -430,58 +405,32 @@ export function App() {
         </p>
       )}
 
-      <div className={showTrace ? "main with-trace" : "main"}>
+      <div className={showTrace ? 'main with-trace' : 'main'}>
         <section className="device" aria-label="Echo Show">
           <div className="screen">
             {link ? (
-              <div
-                className="link-panel"
-                role="dialog"
-                aria-label="Link your account"
-              >
+              <div className="link-panel" role="dialog" aria-label="Link your account">
                 <div className="qr" aria-hidden="true">
                   {Array.from({ length: 49 }, (_, i) => (
-                    <span
-                      key={i}
-                      className={(i * 7 + (i % 5)) % 3 === 0 ? "on" : ""}
-                    />
+                    <span key={i} className={(i * 7 + (i % 5)) % 3 === 0 ? 'on' : ''} />
                   ))}
                 </div>
                 <div>
                   <h2>Link your account</h2>
-                  <p>
-                    Care Circle needs {current?.label ?? "you"} to sign in once.
-                    On a real Echo Show this happens in the Alexa app.
-                  </p>
-                  <button
-                    className="primary"
-                    onClick={() =>
-                      window.open(
-                        link.authorizeUrl,
-                        "care-circle-link",
-                        "width=560,height=720",
-                      )
-                    }
-                  >
+                  <p>Care Circle needs {current?.label ?? 'you'} to sign in once. On a real Echo Show this happens in the Alexa app.</p>
+                  <button className="primary" onClick={() => window.open(link.authorizeUrl, 'care-circle-link', 'width=560,height=720')}>
                     Link account
                   </button>
-                  <p className="small muted">
-                    Sign-in page: {new URL(link.issuer).host}
-                  </p>
+                  <p className="small muted">Sign-in page: {new URL(link.issuer).host}</p>
                 </div>
               </div>
             ) : card ? (
-              <CardFrame
-                key={card.seq}
-                html={card.html}
-                toolResult={card.toolResult}
-                toolArgs={card.args}
-              />
+              <CardFrame key={card.seq} html={card.html} toolResult={card.toolResult} toolArgs={card.args} onCallTool={cardTool} />
             ) : (
               <div className="idle">
                 <p className="greet">
                   {greeting(shown, tz)}
-                  {current && current.id !== "new" ? `, ${current.label}` : ""}
+                  {current && current.id !== 'new' ? `, ${current.label}` : ''}
                 </p>
                 <p className="time">{timeLabel}</p>
                 <p className="muted">
@@ -495,19 +444,10 @@ export function App() {
               </div>
             )}
             {/* Caption-style: only the latest line on screen; the side panel keeps the whole conversation. */}
-            <ol
-              className="transcript"
-              ref={logRef}
-              aria-label="Latest line"
-              aria-live="polite"
-            >
+            <ol className="transcript" ref={logRef} aria-label="Latest line" aria-live="polite">
               {convo.slice(-1).map((l, i) => (
                 <li key={i} className={l.who}>
-                  <span className="sr-only">
-                    {l.who === "user"
-                      ? `${current?.label ?? "You"} said: `
-                      : "Alexa said: "}
-                  </span>
+                  <span className="sr-only">{l.who === 'user' ? `${current?.label ?? 'You'} said: ` : 'Alexa said: '}</span>
                   {l.text}
                 </li>
               ))}
@@ -517,12 +457,7 @@ export function App() {
           <div className="suggestions" aria-label="Try saying">
             <span className="label">Try saying</span>
             {(SUGGESTIONS[persona] ?? []).map((s) => (
-              <button
-                key={s}
-                className="chip"
-                onClick={() => void send(s)}
-                disabled={busy}
-              >
+              <button key={s} className="chip" onClick={() => void send(s)} disabled={busy}>
                 {s}
               </button>
             ))}
@@ -537,26 +472,22 @@ export function App() {
           >
             <button
               type="button"
-              className={listening ? "icon live" : "icon"}
+              className={listening ? 'icon live' : 'icon'}
               onClick={listen}
-              aria-label={listening ? "Listening" : "Speak instead of typing"}
-              title={listening ? "Listening…" : "Speak (Chrome)"}
+              aria-label={listening ? 'Listening' : 'Speak instead of typing'}
+              title={listening ? 'Listening…' : 'Speak (Chrome)'}
               disabled={busy}
             >
-              <Icon name={listening ? "stop" : "mic"} />
+              <Icon name={listening ? 'stop' : 'mic'} />
             </button>
             <label htmlFor="utterance" className="sr-only">
-              What {current?.label ?? "you"} says
+              What {current?.label ?? 'you'} says
             </label>
             <input
               id="utterance"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={
-                persona === "margaret"
-                  ? "Type what Margaret says, e.g. I'm up"
-                  : "Type what they say, e.g. How's Mom doing?"
-              }
+              placeholder={persona === 'margaret' ? "Type what Margaret says, e.g. I'm up" : "Type what they say, e.g. How's Mom doing?"}
               autoComplete="off"
             />
             <button className="primary" disabled={busy || !text.trim()}>
@@ -567,36 +498,16 @@ export function App() {
           {config?.devControls && (
             <div className="demo" aria-label="Demo controls">
               <strong>Demo controls</strong>
-              <button
-                className="sm"
-                onClick={() =>
-                  void dev("clock", { dayOffset: 0, at: "08:35", tz })
-                }
-                disabled={busy}
-              >
+              <button className="sm" onClick={() => void dev('clock', { dayOffset: 0, at: '08:35', tz })} disabled={busy}>
                 Today 8:35 am
               </button>
-              <button
-                className="sm"
-                onClick={() =>
-                  void dev("clock", { dayOffset: 1, at: "10:35", tz })
-                }
-                disabled={busy}
-              >
+              <button className="sm" onClick={() => void dev('clock', { dayOffset: 1, at: '10:35', tz })} disabled={busy}>
                 Jump to tomorrow 10:35
               </button>
-              <button
-                className="sm"
-                onClick={() => void dev("sweep")}
-                disabled={busy}
-              >
+              <button className="sm" onClick={() => void dev('sweep')} disabled={busy}>
                 Run sweep now
               </button>
-              <button
-                className="sm"
-                onClick={() => void dev("reset", {}, "?seed=demo")}
-                disabled={busy}
-              >
+              <button className="sm" onClick={() => void dev('reset', {}, '?seed=demo')} disabled={busy}>
                 Reset demo
               </button>
               <a href={MAILPIT} target="_blank" rel="noreferrer">
@@ -608,63 +519,41 @@ export function App() {
 
         {showTrace && (
           <aside className="side" aria-label="Side panel">
-            <div
-              className="seg full"
-              role="tablist"
-              aria-label="Side panel view"
-            >
+            <div className="seg full" role="tablist" aria-label="Side panel view">
               <button
                 role="tab"
-                aria-selected={panel === "conversation"}
-                className={panel === "conversation" ? "seg-btn on" : "seg-btn"}
-                onClick={() => setPanel("conversation")}
+                aria-selected={panel === 'conversation'}
+                className={panel === 'conversation' ? 'seg-btn on' : 'seg-btn'}
+                onClick={() => setPanel('conversation')}
               >
                 Conversation
               </button>
-              <button
-                role="tab"
-                aria-selected={panel === "trace"}
-                className={panel === "trace" ? "seg-btn on" : "seg-btn"}
-                onClick={() => setPanel("trace")}
-              >
-                Trace{trace.length > 0 ? ` (${trace.length})` : ""}
+              <button role="tab" aria-selected={panel === 'trace'} className={panel === 'trace' ? 'seg-btn on' : 'seg-btn'} onClick={() => setPanel('trace')}>
+                Trace{trace.length > 0 ? ` (${trace.length})` : ''}
               </button>
             </div>
-            {panel === "conversation" ? (
-              <div
-                role="tabpanel"
-                aria-label="Conversation"
-                tabIndex={0}
-                ref={convoRef}
-              >
+            {panel === 'conversation' ? (
+              <div role="tabpanel" aria-label="Conversation" tabIndex={0} ref={convoRef}>
                 {convo.length === 0 ? (
                   <div className="empty-state">
                     <p className="empty-title">No conversation yet</p>
                     <p>
-                      Pick a suggestion or type below the screen. What{" "}
-                      {current?.label ?? "they"} and Alexa say shows up here,
-                      with the Care Circle tools that ran.
+                      Pick a suggestion or type below the screen. What {current?.label ?? 'they'} and Alexa say shows up here, with the Care Circle tools that
+                      ran.
                     </p>
                   </div>
                 ) : (
                   <ol className="convo" aria-label="Conversation history">
                     {convo.map((l, i) => (
                       <li key={i} className={l.who}>
-                        <span className="who">
-                          {l.who === "user"
-                            ? (current?.label ?? "You")
-                            : "Alexa"}
-                        </span>
+                        <span className="who">{l.who === 'user' ? (current?.label ?? 'You') : 'Alexa'}</span>
                         <span>{l.text}</span>
                         {l.tools && l.tools.length > 0 && (
                           <span className="tools">
                             {l.tools.map((t, j) => (
-                              <code
-                                key={j}
-                                className={t.ok ? "tool" : "tool bad"}
-                              >
+                              <code key={j} className={t.ok ? 'tool' : 'tool bad'}>
                                 {t.name}
-                                {t.ok ? " ✓" : " ✕"}
+                                {t.ok ? ' ✓' : ' ✕'}
                               </code>
                             ))}
                           </span>
@@ -675,19 +564,11 @@ export function App() {
                 )}
               </div>
             ) : (
-              <div
-                role="tabpanel"
-                aria-label="Trace"
-                className="trace"
-                tabIndex={0}
-              >
+              <div role="tabpanel" aria-label="Trace" className="trace" tabIndex={0}>
                 {trace.length === 0 ? (
                   <div className="empty-state">
                     <p className="empty-title">No requests yet</p>
-                    <p>
-                      Say something to see each MCP and OAuth request to the
-                      Care Circle server, with its status and time.
-                    </p>
+                    <p>Say something to see each MCP and OAuth request to the Care Circle server, with its status and time.</p>
                   </div>
                 ) : (
                   <table>
@@ -703,29 +584,19 @@ export function App() {
                     <tbody>
                       {trace.map((t, i) => {
                         // A 4xx the protocol calls for (e.g. 405 on GET /mcp from a stateless server) is not a failure.
-                        const expected =
-                          t.detail?.startsWith("expected") ?? false;
-                        const detail = expected
-                          ? t.detail!.replace(/^expected:\s*/, "")
-                          : t.detail;
+                        const expected = t.detail?.startsWith('expected') ?? false;
+                        const detail = expected ? t.detail!.replace(/^expected:\s*/, '') : t.detail;
                         return (
-                          <tr
-                            key={i}
-                            className={`k-${t.kind} ${t.status && t.status >= 400 && !expected ? "bad" : ""}`}
-                          >
+                          <tr key={i} className={`k-${t.kind} ${t.status && t.status >= 400 && !expected ? 'bad' : ''}`}>
                             <td>
                               <span className="kind">{t.kind}</span> {t.label}
-                              {detail && (
-                                <div className="small muted">{detail}</div>
-                              )}
+                              {detail && <div className="small muted">{detail}</div>}
                             </td>
                             <td>
-                              {t.status ?? ""}
-                              {expected && (
-                                <span className="tag ok mini">expected</span>
-                              )}
+                              {t.status ?? ''}
+                              {expected && <span className="tag ok mini">expected</span>}
                             </td>
-                            <td className="num">{t.ms ?? ""}</td>
+                            <td className="num">{t.ms ?? ''}</td>
                           </tr>
                         );
                       })}

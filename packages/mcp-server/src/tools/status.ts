@@ -70,7 +70,7 @@ export async function getStatus(ctx: ToolContext, _input: ToolInput<'get_status'
     doses: { logged: logged.length, open: open.length, missed: missed.length },
     hasNote,
     paused: circle.paused,
-    today: buildCard(circle, date, day.checkIn, day.doses, now),
+    today: buildCard(circle, date, day.checkIn, day.doses, now, { canLog: self }),
   });
 }
 
