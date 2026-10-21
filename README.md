@@ -35,6 +35,18 @@
 
 (The note itself is never read aloud to a caregiver; it is only on the signed-in dashboard.)
 
+**J4b — Family writes back**
+> **Sarah:** Alexa, tell Mom I'll call at 6.
+> **Alexa:** Got it. I'll pass that on to Margaret the next time Margaret talks to Care Circle.
+
+Next morning:
+> **Margaret:** Alexa, tell Care Circle I'm up.
+> **Alexa:** Thanks, Margaret; your check-in at 8:35 is shared with Sarah and Tom. Sarah left you a message: "I'll call at 6."
+
+No new tool and no push: the same `message_circle` tool, and the message rides along on Margaret's next check-in (or "any messages for me?"). It's read only to Margaret, never to other family members.
+
+**Tap-to-log.** On an Echo Show, the card's **Log it** button calls the same `log_dose` tool as the voice command, through the MCP Apps host (`callServerTool`). Only the cared-for person's own card offers it.
+
 **J5 — Silence becomes an email.** No check-in by 10:30 (window end + 30 min grace) → within 5 minutes Sarah and Tom get *"Margaret hasn't checked in today."* A late check-in sends a short all-clear.
 
 **J6 — Crisis wording**

@@ -53,3 +53,9 @@ Deployed Data, Auth, Workers and Api to us-east-1 in ~6 min + a 77 s second depl
 API Gateway HTTP API URL (MCP at /mcp). Cold start ~2.1 s on the first call.
 Live checks pass: PRM, RFC 8414 facade (S256), initialize 2025-03-26, help without a token, 401 with no WWW-Authenticate, MCP Inspector 4/4.
 Spike: Cognito's `/oauth2/authorize` accepts `resource=<api>/mcp` (302 to the managed login page, parameter kept), so we use **option (a)**, straight at Cognito. The token endpoint also accepted it on the first real sign-ins (Oct 21), so no proxy is deployed.
+
+## Family messages back to the cared-for person (Oct 22, approved scope change)
+Sarah or Tom can say "Tell Mom I'll call at 6". It reuses `message_circle` (no new tool): from a family member, the message is stored encrypted (MSG#, `toRecipient`) and appended to a waiting list (`inbox`, max 2) on the cared-for person's own membership item. That item already comes back from the GSI1 identity query every tool makes, so delivery costs no extra read: `check_in` and `get_status` (for the cared-for person; "any messages for me") read the notes aloud and clear them in the same transaction as the audit record, staying within 3 DynamoDB calls. Speech stays at two sentences (the check-in line is shortened, or the medicines line is dropped). Crisis wording from a family member gets the 911/988 redirect and isn't relayed; a crisis check-in speaks the redirect alone and the notes wait. Notes are never read to other family members.
+
+## Tap-to-log on the card (Oct 22)
+The card's `today` data gains `canLog` and dose IDs only on the cared-for person's own card (`get_todays_doses`, or `get_status` asked by them). The button calls `log_dose` with `dose_id` through `App.callServerTool`; the simulator host forwards it (allow-list: `log_dose` only) with the persona's token, so auth and validation are the same as a voice call.
