@@ -111,7 +111,9 @@ npm run dev            # creates .env with fresh local keys, the table, the demo
 
 ## Deploy to AWS
 
-CDK v2 stacks in [`infra/`](infra/README.md): DynamoDB + KMS, Cognito (managed login, resource server, static clients), the API in Lambda via the AWS Lambda Web Adapter behind API Gateway, SQS + notifier + EventBridge Scheduler + SES, and S3 + CloudFront for the web apps. `npm run cdk -- synth` builds everything; deploying is a deliberate two-step process documented there.
+CDK v2 stacks in [`infra/`](infra/README.md): DynamoDB + KMS, Cognito (managed login, resource server, static clients), the API in Lambda via the AWS Lambda Web Adapter behind API Gateway, SQS + notifier + EventBridge Scheduler + SES, and S3 + CloudFront for the web apps. `npm run cdk -- synth` builds everything; deploying is a deliberate two-step process. Step-by-step guide, with CLI commands and what each step does: [`infra/DEPLOY.md`](infra/DEPLOY.md).
+
+**Deployed and verified in us-east-1 (Oct 20–21, 2026).** Over a live HTTPS MCP endpoint: Alexa-style account linking against Cognito (401 → PRM → RFC 8414 → PKCE with `resource` → retry; Cognito accepts `resource` at both endpoints, so no proxy), check-ins, dose logs, messages, the crisis redirect, and real SES emails for missed check-ins, missed medicines, urgent wording and the all-clear. Notes and messages are KMS-encrypted per circle. The stacks are torn down after recording to keep costs at zero.
 
 ## Test results
 
@@ -124,6 +126,7 @@ CDK v2 stacks in [`infra/`](infra/README.md): DynamoDB + KMS, Cognito (managed l
 | MCP Inspector CLI (`--strict` schemas, unauthenticated help, MCP App metadata, resource) | `npm run test:inspector` | **4 / 4 pass** |
 | Voice routing (60 phrasings) and crisis (20 crisis + 20 near-misses) | `npm run test:voice` | scripted agent 60/60; crisis 20/20 redirected, 0/20 near-misses flagged |
 | Latency (local, 10 concurrent, 100 calls per tool) | `npm run test:latency` | worst p95 **28 ms**, worst p99 **30 ms** (targets 300 / 450) |
+| Latency (AWS, measured inside API Gateway, 10 concurrent, 500 calls) | `npm run test:latency` + CloudWatch `Latency` | p50 **~30 ms**, p95 **110–145 ms** warm; p99 up to 455 ms when new Lambda environments cold-start |
 | Accessibility (axe: card, dashboard, simulator) | `npm run test:a11y` | **0 serious or critical issues** |
 | k6 (20 VUs, 2 min, cloud) | `npm run test:load` | script ready; runs after a deploy |
 
@@ -159,8 +162,14 @@ apps/simulator       Alexa+ stand-in: React UI + Node agent (scripted or Bedrock
 skills/care-circle   Agent Skill
 infra                AWS CDK
 tests                contract/, voice/, load/
-docs                 decisions, security, friction log, product feedback, feature requests, Devpost text, demo script
+docs                 architecture, security, privacy, terms, decisions, friction log, product feedback, feature requests
 ```
+
+## Docs
+
+- [Architecture](docs/architecture.md) · [Security](docs/security.md) · [Privacy policy](docs/privacy-policy.md) · [Terms](docs/terms.md)
+- [Decisions and spike results](docs/decisions.md)
+- [Friction log](docs/friction-log.md) · [Product feedback](docs/product-feedback.md) · [Feature requests](docs/feature-requests.md)
 
 ## License
 

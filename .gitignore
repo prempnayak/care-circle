@@ -23,8 +23,10 @@ playwright-report/
 .idea/
 .claude/settings.local.json
 
-# Internal working documents (kept local for now; publish selectively later)
-docs/
+# Internal working documents (kept local)
+docs/progress.md
+docs/demo-script.md
+docs/devpost-description.md
 CARE_CIRCLE_HANDOFF.md
 CLAUDE.md
 infra/cdk-outputs.json
