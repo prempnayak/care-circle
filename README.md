@@ -132,7 +132,7 @@ CDK v2 stacks in [`infra/`](infra/README.md): DynamoDB + KMS, Cognito (managed l
 | Gate | Command | Result |
 | --- | --- | --- |
 | Lint and types | `npm run lint && npm run typecheck` | 0 errors |
-| Unit (tool handlers, roles, crisis, DST, materializer, sweep idempotency, notifier dedupe, copy lint, log redaction) | `npm test` | **273 / 273 pass**; core coverage 81% statements / 83% lines |
+| Unit (tool handlers, roles, crisis, DST, materializer, sweep idempotency, notifier dedupe, copy lint, log redaction) | `npm test` | **300 / 300 pass**; core coverage 81% statements / 83% lines |
 | MCP contract (both protocol versions, schemas valid, every tool callable, `isError`, 401 without `WWW-Authenticate`) | `npm run test:contract` | **36 / 36 pass** |
 | Auth lifecycle (link → use → expiry → refresh → unlink → other account) | `npm run test:contract` | pass; no data crosses accounts |
 | MCP Inspector CLI (`--strict` schemas, unauthenticated help, MCP App metadata, resource) | `npm run test:inspector` | **4 / 4 pass** |
