@@ -3,8 +3,10 @@
  * calls Care Circle through the MCP client SDK with each persona's own token, and does Alexa-style
  * account linking when a tool call comes back 401. AWS credentials and the dev key stay here.
  */
+import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { Hono } from 'hono';
+import { getCookie, setCookie } from 'hono/cookie';
 import { cors } from 'hono/cors';
 import { BedrockAgent } from './agent/bedrock';
 import { ScriptedAgent } from './agent/scripted';
@@ -70,6 +72,18 @@ export function createSimulatorApp(opts: SimulatorOptions) {
     return p;
   };
 
+  // Cognito keeps a session cookie, so a second persona would silently link as the last signed-in
+  // user. For Cognito, each link goes through /logout first (logout_uri = /link/resume), then on to
+  // the authorize URL. Other authorization servers get the authorize URL directly.
+  const freshLogins = new Map<string, { url: string; at: number }>();
+  const freshLoginUrl = (authorizeUrl: string): string => {
+    if (!new URL(authorizeUrl).hostname.endsWith('.amazoncognito.com')) return authorizeUrl;
+    for (const [k, v] of freshLogins) if (Date.now() - v.at > 600_000) freshLogins.delete(k);
+    const id = randomBytes(12).toString('base64url');
+    freshLogins.set(id, { url: authorizeUrl, at: Date.now() });
+    return `${publicUrl}/link/go/${id}`;
+  };
+
   const app = new Hono();
   app.use('*', cors({ origin: [opts.uiOrigin], allowMethods: ['GET', 'POST', 'OPTIONS'] }));
 
@@ -122,7 +136,8 @@ export function createSimulatorApp(opts: SimulatorOptions) {
         persona.tokens = undefined;
         persist();
         try {
-          result.needsLinking = await linker.start(id, trace);
+          const started = await linker.start(id, trace);
+          result.needsLinking = { ...started, authorizeUrl: freshLoginUrl(started.authorizeUrl) };
           result.reply = LINK_PROMPT;
         } catch (linkErr) {
           trace.push({ at: new Date().toISOString(), kind: 'oauth', label: `linking discovery failed: ${(linkErr as Error).message}` });
@@ -148,7 +163,25 @@ export function createSimulatorApp(opts: SimulatorOptions) {
     const trace: TraceEntry[] = [];
     const { authorizeUrl } = await linker.start(id, trace);
     pendingTrace.set(id, [...(pendingTrace.get(id) ?? []), ...trace]);
-    return c.redirect(authorizeUrl, 302);
+    return c.redirect(freshLoginUrl(authorizeUrl), 302);
+  });
+
+  app.get('/link/go/:id', (c) => {
+    const id = c.req.param('id');
+    const entry = freshLogins.get(id);
+    if (!entry) return c.text('This link has expired. Ask again to get a new one.', 400);
+    setCookie(c, 'cc_link', id, { path: '/link', httpOnly: true, sameSite: 'Lax', maxAge: 600 });
+    const logout = new URL('/logout', new URL(entry.url).origin);
+    logout.search = new URLSearchParams({ client_id: process.env.SIM_CLIENT_ID ?? 'simulator', logout_uri: `${publicUrl}/link/resume` }).toString();
+    return c.redirect(logout.toString(), 302);
+  });
+
+  app.get('/link/resume', (c) => {
+    const id = getCookie(c, 'cc_link') ?? '';
+    const entry = freshLogins.get(id);
+    freshLogins.delete(id);
+    if (!entry) return c.text('This link has expired. Ask again to get a new one.', 400);
+    return c.redirect(entry.url, 302);
   });
 
   app.get('/link/callback', async (c) => {

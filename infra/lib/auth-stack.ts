@@ -96,13 +96,24 @@ export class AuthStack extends Stack {
       ...common,
       userPoolClientName: 'simulator',
       generateSecret: false,
-      oAuth: { flows: { authorizationCodeGrant: true }, scopes, callbackUrls: [`${props.simAgentUrl.replace(/\/$/, '')}/link/callback`] },
+      oAuth: {
+        flows: { authorizationCodeGrant: true },
+        scopes,
+        callbackUrls: [`${props.simAgentUrl.replace(/\/$/, '')}/link/callback`],
+        // Each link first clears the Cognito session cookie so a persona never links as the last signed-in user.
+        logoutUrls: [`${props.simAgentUrl.replace(/\/$/, '')}/link/resume`],
+      },
     });
     const dashboard = this.userPool.addClient('DashboardClient', {
       ...common,
       userPoolClientName: 'dashboard',
       generateSecret: false,
-      oAuth: { flows: { authorizationCodeGrant: true }, scopes, callbackUrls: [`${props.dashboardUrl.replace(/\/$/, '')}/callback`] },
+      oAuth: {
+        flows: { authorizationCodeGrant: true },
+        scopes,
+        callbackUrls: [`${props.dashboardUrl.replace(/\/$/, '')}/callback`],
+        logoutUrls: [`${props.dashboardUrl.replace(/\/$/, '')}/`],
+      },
     });
     for (const c of [alexa, simulator, dashboard]) c.node.addDependency(resourceServer);
 

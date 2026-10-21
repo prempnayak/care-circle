@@ -90,6 +90,25 @@ export function signOut(): void {
   sessionStorage.removeItem(KEY);
 }
 
+/**
+ * Sign out of the dashboard and of the authorization server. Cognito keeps its own session cookie,
+ * so without its /logout the next "Sign in" would skip the login page and reuse the last account.
+ * Returns false when there is no server session to clear (local dev-auth).
+ */
+export async function signOutEverywhere(): Promise<boolean> {
+  signOut();
+  try {
+    const endpoint = new URL((await metadata()).authorization_endpoint);
+    if (!endpoint.hostname.endsWith('.amazoncognito.com')) return false;
+    const logout = new URL('/logout', endpoint.origin);
+    logout.search = new URLSearchParams({ client_id: CLIENT_ID, logout_uri: `${window.location.origin}/` }).toString();
+    window.location.assign(logout.toString());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function isSignedIn(): boolean {
   return sessionStorage.getItem(KEY) !== null;
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, type Circle, type Me } from './api';
-import { completeSignIn, isSignedIn, signIn, signOut } from './auth';
+import { completeSignIn, isSignedIn, signIn, signOut, signOutEverywhere } from './auth';
 import { AccountPage, AlertsPage, CreateCirclePage, MedicationsPage, MembersPage, SettingsPage, TimelinePage } from './pages';
 
 type Tab = 'timeline' | 'medications' | 'members' | 'alerts' | 'settings' | 'account';
@@ -81,8 +81,8 @@ export function App() {
           </span>
           <button
             onClick={() => {
-              signOut();
               setMe(null);
+              void signOutEverywhere();
             }}
           >
             Sign out
@@ -123,8 +123,8 @@ export function App() {
                 me={me}
                 circle={circle}
                 onDeleted={() => {
-                  signOut();
                   setMe(null);
+                  void signOutEverywhere();
                 }}
               />
             )}
