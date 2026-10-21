@@ -455,9 +455,11 @@ export function App() {
             </div>
             {panel === 'conversation' ? (
               <div role="tabpanel" aria-label="Conversation" tabIndex={0} ref={convoRef}>
-                <p className="panel-note">Everything {current?.label ?? 'this person'} and Alexa said, and which Care Circle tools ran.</p>
                 {convo.length === 0 ? (
-                  <p className="empty">Nothing yet. Pick a suggestion or type below the screen.</p>
+                  <div className="empty-state">
+                    <p className="empty-title">No conversation yet</p>
+                    <p>Pick a suggestion or type below the screen. What {current?.label ?? 'they'} and Alexa say shows up here, with the Care Circle tools that ran.</p>
+                  </div>
                 ) : (
                   <ol className="convo" aria-label="Conversation history">
                     {convo.map((l, i) => (
@@ -481,9 +483,11 @@ export function App() {
               </div>
             ) : (
               <div role="tabpanel" aria-label="Trace" className="trace" tabIndex={0}>
-                <p className="panel-note">Each MCP and OAuth request: what was called, the HTTP status, and how long it took.</p>
                 {trace.length === 0 ? (
-                  <p className="empty">No requests yet. Say something to see the calls to the Care Circle server.</p>
+                  <div className="empty-state">
+                    <p className="empty-title">No requests yet</p>
+                    <p>Say something to see each MCP and OAuth request to the Care Circle server, with its status and time.</p>
+                  </div>
                 ) : (
                   <table>
                     <thead>
