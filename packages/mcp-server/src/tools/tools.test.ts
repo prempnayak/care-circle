@@ -322,6 +322,58 @@ describe('message_circle and set_sharing', () => {
   });
 });
 
+describe('family messages to the person Care Circle looks after', () => {
+  it('queues a family message without emailing, then reads it at the next check-in, once', async () => {
+    const sent = await call(sarah, 'message_circle', { message: "I'll call at 6" });
+    expect(sent.speech).toBe("Got it. I'll pass that on to Margaret the next time Margaret talks to Care Circle.");
+    expect(sent.out.sentTo).toEqual(['Margaret']);
+    expect(s.queue.sent).toHaveLength(0); // no email for a family-to-recipient message
+    const stored = (await partition('MSG#')).find((m) => m.toRecipient === true)!;
+    expect(String(stored.textCipher)).not.toContain('call at 6');
+
+    const r = await call(margaret, 'check_in', { mood: 'good' });
+    expect(r.speech).toBe('Thanks, Margaret; your check-in at 8:35 is shared with Sarah and Tom. Sarah left you a message: “I\'ll call at 6.”');
+    expect(r.out.familyMessages).toEqual([{ from: 'Sarah', text: "I'll call at 6" }]);
+
+    const again = await call(margaret, 'get_status', {});
+    expect(again.speech).not.toContain('call at 6');
+  });
+
+  it('reads two waiting messages in one sentence and refuses a third until they are heard', async () => {
+    await call(sarah, 'message_circle', { message: 'Need anything from the store?' });
+    await call(tom, 'message_circle', { message: 'See you Sunday!' });
+    const full = await call(sarah, 'message_circle', { message: 'One more thing' });
+    expect(full.ok).toBe(false);
+    expect(full.speech).toBe('Margaret already has two messages waiting. You can send another once Margaret hears them.');
+
+    const r = await call(margaret, 'get_status', {});
+    expect(r.speech).toContain('Sarah says “Need anything from the store?”, and Tom says “See you Sunday!”');
+    expect((await call(sarah, 'message_circle', { message: 'One more thing' })).ok).toBe(true);
+  });
+
+  it('never reads a family message to another family member', async () => {
+    await call(sarah, 'message_circle', { message: 'private to Mom' });
+    const r = await call(tom, 'get_status', {});
+    expect(JSON.stringify(r.out)).not.toContain('private to Mom');
+    expect(r.out.familyMessages).toBeUndefined();
+  });
+
+  it('redirects crisis wording from a family member and does not pass it on', async () => {
+    const r = await call(sarah, 'message_circle', { message: 'I fell and hurt my leg' });
+    expect(r.ok).toBe(false);
+    expect(r.speech).toContain('call 911');
+    expect(r.speech).toContain("didn't pass that message on");
+    expect((await call(margaret, 'check_in', {})).out.familyMessages).toBeUndefined();
+  });
+
+  it('waits behind a crisis check-in: the redirect is spoken alone', async () => {
+    await call(sarah, 'message_circle', { message: "I'll call at 6" });
+    const r = await call(margaret, 'check_in', { note: 'I fell in the kitchen' });
+    expect(r.speech).not.toContain('call at 6');
+    expect((await call(margaret, 'get_status', {})).speech).toContain('call at 6');
+  });
+});
+
 describe('audit', () => {
   it('writes an audit record for successful and failed calls, without payloads', async () => {
     await call(margaret, 'check_in', { note: 'secret words' });

@@ -70,6 +70,6 @@ export interface Timeline {
     checkIn: { status: string; at: string | null; mood: string | null; note: string | null; crisis: boolean } | null;
     doses: { name: string; time: string; status: string; loggedAt: string | null; late: boolean }[];
   }[];
-  messages: { at: string; text: string | null; crisis: boolean }[];
+  messages: { at: string; text: string | null; crisis: boolean; from: string; toRecipient: boolean }[];
   alerts: { type: string; status: string; sentAt: string | null }[];
 }

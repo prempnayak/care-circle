@@ -72,6 +72,14 @@ export interface CircleSnapshot {
   members: MemberSummary[];
 }
 
+/** A short message from a family member, waiting to be read to the person Care Circle looks after. */
+export interface FamilyNote {
+  fromSub: string;
+  fromName: string;
+  textCipher: string;
+  at: string;
+}
+
 export interface Member {
   circleId: string;
   sub: string;
@@ -80,6 +88,8 @@ export interface Member {
   alertOptIn: AlertOptIn;
   consentAt: string;
   circle: CircleSnapshot;
+  /** Only on the cared-for person's membership: family messages not yet read aloud (oldest first). */
+  inbox?: FamilyNote[];
 }
 
 export interface UserProfile {
@@ -131,6 +141,9 @@ export interface StoredMessage {
   fromSub: string;
   textCipher: string;
   crisis: boolean;
+  /** Set when a family member wrote to the person Care Circle looks after. */
+  toRecipient?: boolean;
+  fromName?: string;
 }
 
 export interface JoinCode {

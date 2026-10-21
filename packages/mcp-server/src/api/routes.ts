@@ -283,7 +283,13 @@ export function createApiRoutes(services: Services, verifier: TokenVerifier) {
       byDate.get(d.date)?.doses.push({ name: d.name, time: d.time, status: d.status, loggedAt: d.loggedAt ?? null, late: Boolean(d.late) });
     }
     const messages = await Promise.all(
-      data.messages.map(async (m) => ({ at: m.at, text: await decrypt(m.textCipher), crisis: m.crisis })),
+      data.messages.map(async (m) => ({
+        at: m.at,
+        text: await decrypt(m.textCipher),
+        crisis: m.crisis,
+        from: m.fromName ?? meta.recipientFirstName,
+        toRecipient: Boolean(m.toRecipient),
+      })),
     );
     return c.json({
       tz: meta.tz,

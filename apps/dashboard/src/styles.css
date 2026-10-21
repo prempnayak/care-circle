@@ -139,6 +139,7 @@ ul.messages li { display: flex; gap: 14px; align-items: baseline; flex-wrap: wra
 ul.messages li:last-child { border-bottom: 0; }
 ul.messages .when { color: var(--muted); font-size: 14px; min-width: 150px; font-variant-numeric: tabular-nums; }
 ul.messages .text { flex: 1; min-width: 200px; }
+ul.messages .from { display: block; font-size: 13px; font-weight: 600; color: var(--muted); }
 .note { font-style: italic; color: var(--muted); margin-top: 4px; font-size: 15px; }
 
 /* tables */

@@ -47,6 +47,7 @@ import type {
   Mood,
   Role,
   StoredMessage,
+  FamilyNote,
   UserProfile,
 } from '../types';
 
@@ -738,6 +739,32 @@ export class CareStore {
           TableName: this.t,
           Item: { PK: circlePk(msg.circleId), SK: sk, type: 'message', ...msg, sk, expiresAt: ttl.ninetyDays(now) },
         },
+      },
+    };
+  }
+
+  /** Add a family note to the cared-for person's waiting list; fails the transaction if it already holds `max`. */
+  inboxAppend(circleId: string, recipientSub: string, note: FamilyNote, max: number): TransactItem {
+    return {
+      Update: {
+        TableName: this.t,
+        Key: { PK: circlePk(circleId), SK: memberSk(recipientSub) },
+        UpdateExpression: 'SET inbox = list_append(if_not_exists(inbox, :empty), :n)',
+        ConditionExpression: 'attribute_exists(PK) AND (attribute_not_exists(inbox) OR size(inbox) < :max)',
+        ExpressionAttributeValues: { ':empty': [], ':n': [note], ':max': max },
+      },
+    };
+  }
+
+  /** Drop the first `count` waiting notes after they were read aloud (newer arrivals stay). */
+  inboxShift(circleId: string, sub: string, count: number): TransactItem {
+    return {
+      Update: {
+        TableName: this.t,
+        Key: { PK: circlePk(circleId), SK: memberSk(sub) },
+        UpdateExpression: `REMOVE ${Array.from({ length: count }, (_, i) => `inbox[${i}]`).join(', ')}`,
+        ConditionExpression: 'size(inbox) >= :c',
+        ExpressionAttributeValues: { ':c': count },
       },
     };
   }

@@ -78,12 +78,13 @@ export function route(utterance: string): Route {
     return { kind: 'tool', name: 'get_week_summary', args: { days } };
   }
 
-  // Caregiver status: "how's Mom doing", "did Dad check in", "any news from Margaret", "how am I doing today".
+  // Status: "how's Mom doing", "did Dad check in", "any news from Margaret", "how am I doing today", "any messages for me".
   if (
     /\b(how'?s|how is|how are|how am)\b.*\b(doing|today|going|getting on)\b/.test(t) ||
     /^how\b.*\bdoing\b/.test(t) ||
     /\bdid (?!i\b)(mom|dad|mum|grandma|grandpa|she|he|they|\w+) (check in|take|log)\b/.test(t) ||
-    /\b(any news|status|update)\b/.test(t)
+    /\b(any news|status|update)\b/.test(t) ||
+    /\b(any|my|new|read( me)?)\s+messages?\b|\bmessages? for me\b|\bdid (anyone|someone|the family) (leave|send)\b/.test(t)
   ) {
     const person = /\bhow'?s (\w+)|how is (\w+)|^how (\w+)|did (\w+)|from (\w+)/.exec(t);
     const who = person?.slice(1).find(Boolean);

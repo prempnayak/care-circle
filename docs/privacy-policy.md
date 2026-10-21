@@ -1,13 +1,13 @@
 # Care Circle privacy policy (hackathon prototype)
 
-_Last updated: October 1, 2026_
+_Last updated: October 22, 2026_
 
 Care Circle helps an older adult share daily check-ins and a simple medicine log with family members they invite. **Care Circle only knows what someone tells it.** It is not an emergency service; in an emergency, call 911. It is not a substitute for professional medical advice.
 
 ## What we collect
 
 - **Account details** from your sign-in provider: an account identifier, first name and email address.
-- **What you tell Care Circle:** check-in times, an optional mood (good / okay / not great), an optional short note (up to 140 characters), medicine log entries (taken or skipped, and when), and short messages to your family (up to 140 characters).
+- **What you tell Care Circle:** check-in times, an optional mood (good / okay / not great), an optional short note (up to 140 characters), medicine log entries (taken or skipped, and when), short messages to your family (up to 140 characters), and short messages from family members to you (up to 140 characters).
 - **What family members set up:** the name of the person Care Circle looks after, a time zone, a check-in window, medicine names, nicknames and times. We never store dosage, strength or other drug information.
 - **Records of use:** an audit record of each action (who, what, when, success), without the content.
 
@@ -16,6 +16,7 @@ We do **not** collect Alexa device data, usage data, voice recordings, location,
 ## How we use it
 
 - To tell the people in your circle that you checked in, your mood, and how many medicines are logged. **Notes and messages are never read aloud to family members**; they appear only on the signed-in family dashboard.
+- To read a family member's short message aloud to you the next time you check in or ask for messages. It is read only to you, and it also appears on the family dashboard.
 - To email your family when an expected check-in or medicine isn't logged, when you send them a message, when you pause or resume sharing, and when you use words about a fall, injury or self-harm (after first suggesting you call 911 or 988).
 
 ## Your choices

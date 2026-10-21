@@ -1,6 +1,7 @@
 import { addDays, copy, localInstant, todayIn, weekdayName, type Dose } from '@care-circle/core';
 import {
   buildCard,
+  readInbox,
   requireCaregiver,
   requireMember,
   spokenAt,
@@ -40,7 +41,13 @@ export async function getStatus(ctx: ToolContext, _input: ToolInput<'get_status'
   }
 
   const day = await store.getDay(member.circleId, date);
-  await store.writeAudit(member.circleId, member.sub, 'get_status', 'get_status', true, now);
+  // Asking "how am I doing" or "any messages" also reads waiting family messages to the person Care Circle looks after.
+  const inbox = self ? await readInbox(ctx, member) : { notes: [], count: 0 };
+  if (inbox.count > 0) {
+    await store.transact([store.auditPut(member.circleId, member.sub, 'get_status', 'get_status', true, now), store.inboxShift(member.circleId, member.sub, inbox.count)]);
+  } else {
+    await store.writeAudit(member.circleId, member.sub, 'get_status', 'get_status', true, now);
+  }
 
   const ci = day.checkIn?.status === 'done' ? day.checkIn : undefined;
   const logged = day.doses.filter(isLogged);
@@ -63,7 +70,8 @@ export async function getStatus(ctx: ToolContext, _input: ToolInput<'get_status'
   }
 
   return succeed({
-    speech: dosesSentence ? `${first} ${dosesSentence}` : first,
+    // Two sentences at most: waiting family messages take the place of the medicines sentence.
+    speech: inbox.notes.length > 0 ? `${first} ${copy.familyNotesSpoken(inbox.notes)}` : dosesSentence ? `${first} ${dosesSentence}` : first,
     date,
     checkIn: ci?.at ? { at: ci.at, ...(ci.mood ? { mood: ci.mood } : {}) } : null,
     windowEnd,
@@ -71,6 +79,7 @@ export async function getStatus(ctx: ToolContext, _input: ToolInput<'get_status'
     hasNote,
     paused: circle.paused,
     today: buildCard(circle, date, day.checkIn, day.doses, now, { canLog: self }),
+    ...(inbox.notes.length > 0 ? { familyMessages: inbox.notes } : {}),
   });
 }
 

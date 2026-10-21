@@ -51,6 +51,21 @@ export function requireCaregiver(member: Member): void {
   if (member.role === 'recipient') throw new ToolError(copy.caregiverOnly());
 }
 
+/** How many family messages can wait for the person Care Circle looks after. */
+export const INBOX_MAX = 2;
+
+/** Waiting family messages for the cared-for person, decrypted for reading aloud (comes with the GSI1 identity read). */
+export async function readInbox(ctx: ToolContext, member: Member): Promise<{ notes: { from: string; text: string }[]; count: number }> {
+  const waiting = (member.inbox ?? []).slice(0, INBOX_MAX);
+  const notes: { from: string; text: string }[] = [];
+  for (const n of waiting) {
+    const text = await ctx.services.crypto.decrypt(n.textCipher, member.circleId).catch(() => null);
+    if (text) notes.push({ from: n.fromName, text });
+  }
+  // `count` includes any note that failed to decrypt, so it's still cleared.
+  return { notes, count: waiting.length };
+}
+
 /** First names of everyone in the circle except the person Care Circle looks after. */
 export function caregiverNames(circle: CircleSnapshot): string[] {
   return circle.members.filter((m) => m.role !== 'recipient').map((m) => m.firstName);

@@ -56,9 +56,9 @@ export const copy = {
   helpNoCircle: () =>
     "Care Circle lets your family share check-ins and a simple medicine log; to join, ask your family for a join code. It isn't for emergencies; if you need help now, call 911.",
   helpRecipient: () =>
-    "You can say 'I'm up' to check in, ask what pills you have, or tell me when you've had one. Care Circle isn't for emergencies; if you need help now, call 911.",
+    "You can say 'I'm up' to check in, ask what pills you have, tell me when you've had one, or ask for messages from your family. Care Circle isn't for emergencies; if you need help now, call 911.",
   helpCaregiver: (recipientName: string) =>
-    `You can ask how ${recipientName} is doing today or how the week went. Care Circle isn't for emergencies; if ${recipientName} needs help now, call 911.`,
+    `You can ask how ${recipientName} is doing today, ask how the week went, or leave ${recipientName} a message. Care Circle isn't for emergencies; if ${recipientName} needs help now, call 911.`,
 
   // ---- join_circle ----
   joinCodeNotFound: () => "I couldn't find that code. Check the six digits on your family's dashboard and try again.",
@@ -129,6 +129,38 @@ export const copy = {
     caregivers.length > 0
       ? `${copy.crisisRedirect(category)} I'm sending your message to ${listNames(caregivers)}.`
       : `${copy.crisisRedirect(category)} There's no one else in your circle yet.`,
+
+  // ---- family notes: a family member's short message to the person Care Circle looks after ----
+  familyNoteQueued: (recipientName: string) =>
+    `Got it. I'll pass that on to ${recipientName} the next time ${recipientName} talks to Care Circle.`,
+  familyNoteNoRecipient: (recipientName: string) =>
+    `${recipientName} hasn't joined Care Circle yet, so I can't pass that on. You can make a join code on the dashboard.`,
+  familyNoteFull: (recipientName: string) =>
+    `${recipientName} already has two messages waiting. You can send another once ${recipientName} hears them.`,
+  familyNoteCrisis: (category: CrisisCategory) =>
+    category === 'injury'
+      ? "If someone is hurt or needs help now, call 911. I didn't pass that message on."
+      : "If you or someone else is thinking about self-harm, call or text 988, or call 911 if anyone is in danger. I didn't pass that message on.",
+  /** One sentence that reads waiting family messages aloud (at most two). */
+  familyNotesSpoken: (notes: { from: string; text: string }[]) => {
+    // Quote each message as written; add a full stop only if it has no ending punctuation.
+    const q = (t: string) => {
+      const x = t.trim();
+      return `“${/[.!?]$/.test(x) ? x : `${x}.`}”`;
+    };
+    const [a, b] = notes;
+    if (!a) return '';
+    if (!b) return `${a.from} left you a message: ${q(a.text)}`;
+    if (a.from === b.from) return `${a.from} left you two messages: ${q(a.text)} and ${q(b.text)}`;
+    return `${a.from} says ${q(a.text)}, and ${b.from} says ${q(b.text)}`;
+  },
+  /** First sentence of a check-in reply when family messages follow it. */
+  checkInBrief: (name: string, at: string, caregivers: string[], paused: boolean) =>
+    paused
+      ? `Thanks, ${name}; your check-in at ${at} is saved privately.`
+      : caregivers.length > 0
+        ? `Thanks, ${name}; your check-in at ${at} is shared with ${listNames(caregivers)}.`
+        : `Thanks, ${name}; your check-in at ${at} is saved.`,
 
   // ---- get_status ----
   statusPaused: (name: string) => `${name} has paused sharing. You can still reach ${name} directly.`,
@@ -286,6 +318,14 @@ export function allSpeechSamples(): string[] {
     copy.messageNoOne(),
     copy.messageCrisis('injury', cg),
     copy.messageCrisis('self_harm', []),
+    copy.familyNoteQueued(n),
+    copy.familyNoteNoRecipient(n),
+    copy.familyNoteFull(n),
+    copy.familyNoteCrisis('injury'),
+    copy.familyNoteCrisis('self_harm'),
+    `${copy.checkInBrief(n, '8:40', cg, false)} ${copy.familyNotesSpoken([{ from: 'Sarah', text: "I'll call at 6" }])}`,
+    `${copy.checkInBrief(n, '8:40', cg, true)} ${copy.familyNotesSpoken([{ from: 'Sarah', text: 'Call me?' }, { from: 'Tom', text: 'See you Sunday!' }])}`,
+    `${copy.checkInBrief(n, '8:40', [], false)} ${copy.familyNotesSpoken([{ from: 'Sarah', text: 'a' }, { from: 'Sarah', text: 'b' }])}`,
     copy.statusPaused(n),
     copy.statusNotYet(n, '10:00 am'),
     copy.statusMissed(n, '10:00 am'),

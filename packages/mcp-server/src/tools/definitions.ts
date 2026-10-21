@@ -106,7 +106,11 @@ export const inputs = {
     .strict(),
   message_circle: z
     .object({
-      message: z.string().min(1).max(MESSAGE_MAX).describe('The short message for the family, in the person\'s own words.'),
+      message: z
+        .string()
+        .min(1)
+        .max(MESSAGE_MAX)
+        .describe("The short message in the speaker's own words, without the 'tell Mom' part, e.g. I'll call at 6."),
     })
     .strict(),
   get_status: z
@@ -148,6 +152,8 @@ export const outputs = {
     mood: z.enum(MOODS).optional(),
     crisis: z.boolean(),
     sharedWith: z.array(z.string()),
+    /** Family messages read aloud in this reply (only to the person Care Circle looks after). */
+    familyMessages: z.array(z.object({ from: z.string(), text: z.string() })).optional(),
   }),
   get_todays_doses: z.object({
     speech,
@@ -176,6 +182,7 @@ export const outputs = {
     hasNote: z.boolean(),
     paused: z.boolean(),
     today: cardDataSchema.optional(),
+    familyMessages: z.array(z.object({ from: z.string(), text: z.string() })).optional(),
   }),
   get_week_summary: z.object({
     speech,
@@ -241,14 +248,14 @@ export const meta: Record<ToolName, ToolMeta> = {
   message_circle: {
     title: 'Message the family',
     description:
-      "Sends a short message (up to 140 characters) from the person Care Circle looks after to the family by email. Use for: tell my family I need groceries, send a message to my kids, let Sarah know I'll be out, ask my son to call me.",
+      "Sends a short message (up to 140 characters). From the person Care Circle looks after, it goes to the family by email. From a family member, it's read aloud to the person Care Circle looks after the next time they check in or ask for messages. Use for: tell my family I need groceries, let Sarah know I'll be out, ask my son to call me, tell Mom I'll call at 6, let Dad know I'm coming Sunday.",
     readOnly: false,
     card: false,
   },
   get_status: {
     title: 'How are they doing today',
     description:
-      "Tells a family member whether their relative checked in today, their mood and how many medicines are logged. Never reads notes aloud. Use for: how's Mom doing, did Dad check in, how is Margaret today, any news from Mom, how am I doing today.",
+      "Tells a family member whether their relative checked in today, their mood and how many medicines are logged; never reads their notes aloud. For the person Care Circle looks after, it also reads any messages their family left them. Use for: how's Mom doing, did Dad check in, how is Margaret today, any news from Mom, how am I doing today, any messages for me.",
     readOnly: true,
     card: true,
   },

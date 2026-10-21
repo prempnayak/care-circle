@@ -154,8 +154,10 @@ export function TimelinePage({ circle }: { circle: Circle }) {
       {today && <TodayCard day={today} tz={data.tz} circle={circle} />}
 
       <section className="card" aria-labelledby="msg-h">
-        <h2 id="msg-h">Messages from {name}</h2>
-        <p className="hint">Notes and messages appear only here, never read aloud to family members.</p>
+        <h2 id="msg-h">Messages</h2>
+        <p className="hint">
+          {name}'s notes and messages appear only here, never read aloud to family. Messages to {name} are read to {name} at the next check-in.
+        </p>
         {data.messages.length === 0 ? (
           <p className="empty">No messages in the last 14 days.</p>
         ) : (
@@ -163,7 +165,9 @@ export function TimelinePage({ circle }: { circle: Circle }) {
             {messages.map((m) => (
               <li key={m.at}>
                 <span className="when">{shortDate(m.at, data.tz)}, {time(m.at, data.tz)}</span>
-                <span className="text">“{m.text}”</span>
+                <span className="text">
+                  <span className="from">{m.toRecipient ? `${m.from} to ${name}` : m.from}</span> “{m.text}”
+                </span>
                 {m.crisis && <span className="pill bad">Urgent wording</span>}
               </li>
             ))}

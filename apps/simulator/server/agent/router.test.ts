@@ -35,6 +35,13 @@ describe('scripted router against tests/voice/utterances.json', () => {
     expect(route('Let Sarah know I’ll be out at noon')).toMatchObject({ args: { message: 'I’ll be out at noon' } });
   });
 
+  it('routes family messages both ways', () => {
+    expect(route("Tell Mom I'll call at 6")).toEqual({ kind: 'tool', name: 'message_circle', args: { message: "I'll call at 6" } });
+    for (const say of ['Any messages for me?', 'Do I have any messages', 'Read me my messages', 'Did anyone leave me a message?']) {
+      expect(route(say), say).toMatchObject({ kind: 'tool', name: 'get_status' });
+    }
+  });
+
   it('handles yes/no for confirmations', () => {
     expect(route('Yes').kind).toBe('yes');
     expect(route('no thanks').kind).toBe('no');

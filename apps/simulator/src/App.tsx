@@ -53,10 +53,11 @@ const SUGGESTIONS: Record<string, string[]> = {
     "Tell the family I'm going to the park",
     'Tell Care Circle I fell this morning',
     'How much metformin should I take?',
+    'Any messages for me?',
     'Pause sharing',
   ],
-  sarah: ["Ask Care Circle how Mom's doing", "How was Mom's week?", 'What can you do?'],
-  tom: ["Ask Care Circle how Mom's doing", "How was Mom's week?", 'What can you do?'],
+  sarah: ["Ask Care Circle how Mom's doing", "How was Mom's week?", "Tell Mom I'll call at 6", 'What can you do?'],
+  tom: ["Ask Care Circle how Mom's doing", "How was Mom's week?", "Tell Mom I'll see her Sunday", 'What can you do?'],
   new: ['What can you do?', 'My code is 482159'],
 };
 
