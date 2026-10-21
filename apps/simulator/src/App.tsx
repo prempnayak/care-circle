@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CardFrame } from './CardFrame';
+import { Icon } from './icons';
 
 const AGENT = (import.meta.env.VITE_AGENT_URL ?? 'http://localhost:8790').replace(/\/$/, '');
 const MAILPIT = import.meta.env.VITE_MAILPIT_URL ?? 'http://localhost:8025';
@@ -100,7 +101,7 @@ export function App() {
   const [clock, setClock] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const logRef = useRef<HTMLOListElement>(null);
-  const convoRef = useRef<HTMLOListElement>(null);
+  const convoRef = useRef<HTMLDivElement>(null);
   const tz = config?.tz ?? DEFAULT_TZ;
 
   useEffect(() => {
@@ -247,64 +248,82 @@ export function App() {
 
   return (
     <div className="layout">
-      <header>
-        <h1>
-          Care Circle <span className="muted">· Alexa+ simulator</span>
-        </h1>
+      <header className="topbar">
+        <div className="title">
+          <span className="logo" aria-hidden="true" />
+          <h1>Care Circle</h1>
+          <span className="tag">Alexa+ simulator</span>
+        </div>
         <div className="row">
           {config && (
-            <span className="badge" title="Which agent picks the tools: scripted rules, or a Bedrock model">
-              Agent: {config.agent}
+            <span className="tag" title="Which agent picks the tools: scripted rules, or a Bedrock model">
+              Agent · {config.agent}
             </span>
           )}
-          <span className="badge" title={tz}>
-            {clock ? 'Demo clock' : 'Clock'}: {city(tz)} time
+          <span className="tag" title={tz}>
+            {clock ? 'Demo clock' : 'Clock'} · {city(tz)}
           </span>
-          <button onClick={() => setMuted((m) => !m)} aria-pressed={muted}>
-            {muted ? '🔇 Unmute' : '🔊 Mute'}
+          <button
+            className="icon"
+            onClick={() => setMuted((m) => !m)}
+            aria-pressed={!muted}
+            aria-label="Read replies aloud"
+            title={muted ? 'Replies are silent' : 'Replies are read aloud'}
+          >
+            <Icon name={muted ? 'volumeOff' : 'volume'} />
           </button>
-          <button onClick={() => setShowTrace((s) => !s)} aria-pressed={showTrace}>
-            {showTrace ? 'Hide side panel' : 'Show side panel'}
+          <button
+            className="icon"
+            onClick={() => setShowTrace((s) => !s)}
+            aria-pressed={showTrace}
+            aria-label="Side panel"
+            title={showTrace ? 'Hide side panel' : 'Show side panel'}
+          >
+            <Icon name="panel" />
           </button>
         </div>
       </header>
 
-      <nav className="personas" aria-label="Who is talking">
-        <span className="muted label">Who's talking:</span>
-        {personas.map((p) => (
-          <button
-            key={p.id}
-            className={p.id === persona ? 'persona active' : 'persona'}
-            aria-pressed={p.id === persona}
-            onClick={() => {
-              setPersona(p.id);
-              setLink(null);
-            }}
-            title={p.hint}
-          >
-            <span className={p.linked ? 'dot on' : 'dot'} aria-hidden="true" />
-            {p.label}
-            <span className="sr-only">{p.linked ? ' (linked)' : ' (not linked)'}</span>
-          </button>
-        ))}
-      </nav>
-      {current && (
-        <p className="persona-hint">
-          {current.hint}.{' '}
-          {current.linked ? (
-            <>
-              <span className="ok">Account linked.</span>{' '}
-              <button className="link" onClick={() => void post('/unlink', { persona }).then(refreshPersonas)}>
-                Unlink
-              </button>
-            </>
-          ) : current.id === 'new' ? (
-            'Not linked yet.'
-          ) : (
-            "Not linked yet: say something and Alexa will ask to link."
-          )}
-        </p>
-      )}
+      <div className="persona-bar">
+        <div className="seg" role="group" aria-label="Who's talking">
+          {personas.map((p) => (
+            <button
+              key={p.id}
+              className={p.id === persona ? 'seg-btn on' : 'seg-btn'}
+              aria-pressed={p.id === persona}
+              onClick={() => {
+                setPersona(p.id);
+                setLink(null);
+              }}
+              title={p.hint}
+            >
+              <span className="avatar" aria-hidden="true">
+                {p.id === 'new' ? '+' : p.label[0]}
+              </span>
+              {p.label}
+              <span className={p.linked ? 'dot on' : 'dot'} aria-hidden="true" />
+              <span className="sr-only">{p.linked ? ' (linked)' : ' (not linked)'}</span>
+            </button>
+          ))}
+        </div>
+        {current && (
+          <div className="persona-info">
+            <span className="muted">{current.hint}</span>
+            {current.linked ? (
+              <>
+                <span className="tag ok">Linked</span>
+                <button className="sm" onClick={() => void post('/unlink', { persona }).then(refreshPersonas)}>
+                  Unlink
+                </button>
+              </>
+            ) : (
+              <span className="tag" title="Say something and Alexa will ask to link">
+                Not linked
+              </span>
+            )}
+          </div>
+        )}
+      </div>
 
       {error && (
         <p role="alert" className="error">
@@ -362,7 +381,7 @@ export function App() {
           </div>
 
           <div className="suggestions" aria-label="Try saying">
-            <span className="label">Try saying:</span>
+            <span className="label">Try saying</span>
             {(SUGGESTIONS[persona] ?? []).map((s) => (
               <button key={s} className="chip" onClick={() => void send(s)} disabled={busy}>
                 {s}
@@ -371,14 +390,21 @@ export function App() {
           </div>
 
           <form
-            className="say"
+            className="composer"
             onSubmit={(e) => {
               e.preventDefault();
               void send(text);
             }}
           >
-            <button type="button" className={listening ? 'mic on' : 'mic'} onClick={listen} aria-label={listening ? 'Listening' : 'Speak'} disabled={busy}>
-              {listening ? '●' : '🎤'}
+            <button
+              type="button"
+              className={listening ? 'icon live' : 'icon'}
+              onClick={listen}
+              aria-label={listening ? 'Listening' : 'Speak instead of typing'}
+              title={listening ? 'Listening…' : 'Speak (Chrome)'}
+              disabled={busy}
+            >
+              <Icon name={listening ? 'stop' : 'mic'} />
             </button>
             <label htmlFor="utterance" className="sr-only">
               What {current?.label ?? 'you'} says
@@ -391,23 +417,23 @@ export function App() {
               autoComplete="off"
             />
             <button className="primary" disabled={busy || !text.trim()}>
-              Say
+              Say <Icon name="send" size={16} />
             </button>
           </form>
 
           {config?.devControls && (
             <div className="demo" aria-label="Demo controls">
               <strong>Demo controls</strong>
-              <button onClick={() => void dev('clock', { dayOffset: 0, at: '08:35', tz })} disabled={busy}>
+              <button className="sm" onClick={() => void dev('clock', { dayOffset: 0, at: '08:35', tz })} disabled={busy}>
                 Today 8:35 am
               </button>
-              <button onClick={() => void dev('clock', { dayOffset: 1, at: '10:35', tz })} disabled={busy}>
+              <button className="sm" onClick={() => void dev('clock', { dayOffset: 1, at: '10:35', tz })} disabled={busy}>
                 Jump to tomorrow 10:35
               </button>
-              <button onClick={() => void dev('sweep')} disabled={busy}>
+              <button className="sm" onClick={() => void dev('sweep')} disabled={busy}>
                 Run sweep now
               </button>
-              <button onClick={() => void dev('reset', {}, '?seed=demo')} disabled={busy}>
+              <button className="sm" onClick={() => void dev('reset', {}, '?seed=demo')} disabled={busy}>
                 Reset demo
               </button>
               <a href={MAILPIT} target="_blank" rel="noreferrer">
@@ -419,21 +445,21 @@ export function App() {
 
         {showTrace && (
           <aside className="side" aria-label="Side panel">
-            <div className="seg" role="tablist" aria-label="Side panel view">
-              <button role="tab" aria-selected={panel === 'conversation'} className={panel === 'conversation' ? 'on' : ''} onClick={() => setPanel('conversation')}>
+            <div className="seg full" role="tablist" aria-label="Side panel view">
+              <button role="tab" aria-selected={panel === 'conversation'} className={panel === 'conversation' ? 'seg-btn on' : 'seg-btn'} onClick={() => setPanel('conversation')}>
                 Conversation
               </button>
-              <button role="tab" aria-selected={panel === 'trace'} className={panel === 'trace' ? 'on' : ''} onClick={() => setPanel('trace')}>
+              <button role="tab" aria-selected={panel === 'trace'} className={panel === 'trace' ? 'seg-btn on' : 'seg-btn'} onClick={() => setPanel('trace')}>
                 Trace{trace.length > 0 ? ` (${trace.length})` : ''}
               </button>
             </div>
             {panel === 'conversation' ? (
-              <div role="tabpanel" aria-label="Conversation">
-                <p className="small muted">Everything {current?.label ?? 'this person'} and Alexa said, and which Care Circle tools ran.</p>
+              <div role="tabpanel" aria-label="Conversation" tabIndex={0} ref={convoRef}>
+                <p className="panel-note">Everything {current?.label ?? 'this person'} and Alexa said, and which Care Circle tools ran.</p>
                 {convo.length === 0 ? (
-                  <p className="empty">Nothing yet. Pick a “Try saying” button or type below the screen.</p>
+                  <p className="empty">Nothing yet. Pick a suggestion or type below the screen.</p>
                 ) : (
-                  <ol className="convo" ref={convoRef} tabIndex={0} aria-label="Conversation history">
+                  <ol className="convo" aria-label="Conversation history">
                     {convo.map((l, i) => (
                       <li key={i} className={l.who}>
                         <span className="who">{l.who === 'user' ? current?.label ?? 'You' : 'Alexa'}</span>
@@ -455,7 +481,7 @@ export function App() {
               </div>
             ) : (
               <div role="tabpanel" aria-label="Trace" className="trace" tabIndex={0}>
-                <p className="small muted">Each MCP and OAuth request: what was called, the HTTP status, and how long it took.</p>
+                <p className="panel-note">Each MCP and OAuth request: what was called, the HTTP status, and how long it took.</p>
                 {trace.length === 0 ? (
                   <p className="empty">No requests yet. Say something to see the calls to the Care Circle server.</p>
                 ) : (
