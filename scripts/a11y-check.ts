@@ -30,6 +30,10 @@ async function agentPost(path: string, body: unknown) {
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 }, colorScheme: 'light' });
+// Headless Chromium still speaks through the machine's speakers; keep test runs silent.
+await ctx.addInitScript(() => {
+  if ('speechSynthesis' in window) window.speechSynthesis.speak = () => {};
+});
 const page = await ctx.newPage();
 
 // 1. The card on its own (sample data) at Echo Show size.
