@@ -81,6 +81,12 @@
 - **Needs work:** inference-profile ARNs make least-privilege IAM fiddly. On a new account every model (Claude and Amazon Nova) returned a generic `Operation not allowed`, and the Anthropic use-case form itself was refused until a support case; the simulator uses its scripted agent meanwhile.
 - **Again?** Yes.
 
+### Strands Agents SDK (TypeScript, v1.22)
+- **Used for:** the simulator's Alexa+ stand-in, with Care Circle's MCP tools as `FunctionTool`s and the Agent Skill as the system prompt. The model is LM Studio (OpenAI-compatible, Qwen 3 8B) or Bedrock, chosen by a setting.
+- **Worked well:** switching providers is one constructor (`OpenAIModel` with `api: 'chat'` and a `baseURL`, or `BedrockModel`). It ships an MCP client on the same MCP SDK v2 we use. `agent.cancel()` and `stopReason: 'cancelled'` gave a clean "one tool per turn" loop. Tool calling against a local OpenAI-compatible server worked first time.
+- **Needs work:** `FunctionTool` swallows thrown errors (see the friction log). `printer` defaults to true, which is noisy in a server. The OpenAI provider defaults to the Responses API, which many local servers don't offer; it's easy to miss `api: 'chat'`.
+- **Again?** Yes.
+
 ### AWS CDK v2
 - **Used for:** all stacks.
 - **Worked well:** `NodejsFunction` bundling with local esbuild; synth runs without credentials.

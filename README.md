@@ -68,7 +68,7 @@ The 911 (or 988 for self-harm wording) redirect is always spoken first; then the
 | Stateless | No `Mcp-Session-Id`; a fresh server per request; tools return stable IDs (`dose_id`) | contract test checks no session header |
 | Every tool result: speech text, then JSON text; `structuredContent` with `speech`; `outputSchema`; business errors as `isError: true` | One envelope builder for all 9 tools; outputs validated against their declared schemas with Ajv | contract tests |
 | **MCP Apps** card | `ui://care-circle/today` (single-file HTML, `text/html;profile=mcp-app`) on `get_status` and `get_todays_doses`; renders only from `structuredContent`, so card and speech never disagree | MCP Inspector `--app-info`, simulator |
-| **Agent Skill** | [`skills/care-circle/SKILL.md`](skills/care-circle/SKILL.md); the Bedrock agent uses it as its system prompt | — |
+| **Agent Skill** | [`skills/care-circle/SKILL.md`](skills/care-circle/SKILL.md); the Strands and Bedrock agents use it as their system prompt | — |
 | Context-aware add-on that keeps state across sessions | Check-ins, dose logs, week summaries, join codes, missed-deadline sweeps | — |
 | Latency < 500 ms | No model calls in tools; ≤ 3 single-partition DynamoDB calls (usually 2) + 1 optional SQS send | local p95 **28 ms**, p99 **30 ms** (below) |
 
@@ -121,6 +121,23 @@ npm install
 npm run dev            # creates .env with fresh local keys, the table, the demo data, and starts everything
 ```
 
+### The simulator's agent (who plays Alexa+)
+
+Alexa+ uses its own model to pick an add-on's tools; the simulator needs something in that seat. Three choices, set with `SIM_AGENT`:
+
+| `SIM_AGENT` | What picks the tools | Notes |
+| --- | --- | --- |
+| `strands` | An [AWS Strands Agents](https://strandsagents.com) agent with the Agent Skill as its prompt and Care Circle's MCP tools | Model is a setting: `SIM_MODEL_PROVIDER=lmstudio` with `SIM_MODEL_ID=qwen/qwen3-8b` (any local model behind [LM Studio](https://lmstudio.ai)'s OpenAI-compatible server), or `SIM_MODEL_PROVIDER=bedrock` with `SIM_MODEL_ID=us.anthropic.claude-haiku-5-5` |
+| `scripted` (default) | Regex rules | No model; the fixed suggestion phrases |
+| `bedrock` | Hand-written Bedrock Converse loop | Kept for comparison |
+
+```bash
+# LM Studio running with qwen/qwen3-8b loaded and its server on :1234
+SIM_AGENT=strands npm run dev
+```
+
+The Strands agent calls one Care Circle tool per turn and speaks Care Circle's reply as written, so the voice rules hold whatever the model. **Injury and self-harm wording never depends on the model:** the agent runs Care Circle's deterministic crisis matcher first and goes straight to `check_in`, so the 911/988 redirect and the family email always happen. (Small local models tend to answer those phrases themselves instead of calling a tool.) We ran it on a local Qwen model because Bedrock was blocked on our new AWS account; switching is the one setting above.
+
 ## Deploy to AWS
 
 CDK v2 stacks in [`infra/`](infra/README.md): DynamoDB + KMS, Cognito (managed login, resource server, static clients), the API in Lambda via the AWS Lambda Web Adapter behind API Gateway, SQS + notifier + EventBridge Scheduler + SES, and S3 + CloudFront for the web apps. `npm run cdk -- synth` builds everything; deploying is a deliberate two-step process. Step-by-step guide, with CLI commands and what each step does: [`infra/DEPLOY.md`](infra/DEPLOY.md).
@@ -136,13 +153,13 @@ CDK v2 stacks in [`infra/`](infra/README.md): DynamoDB + KMS, Cognito (managed l
 | MCP contract (both protocol versions, schemas valid, every tool callable, `isError`, 401 without `WWW-Authenticate`) | `npm run test:contract` | **36 / 36 pass** |
 | Auth lifecycle (link → use → expiry → refresh → unlink → other account) | `npm run test:contract` | pass; no data crosses accounts |
 | MCP Inspector CLI (`--strict` schemas, unauthenticated help, MCP App metadata, resource) | `npm run test:inspector` | **4 / 4 pass** |
-| Voice routing (60 phrasings) and crisis (20 crisis + 20 near-misses) | `npm run test:voice` | scripted agent 60/60; crisis 20/20 redirected, 0/20 near-misses flagged |
+| Voice routing (60 phrasings + 22 loose everyday phrasings) and crisis (20 crisis + 20 near-misses) | `npm run test:voice` | **Strands agent (Qwen 3 8B, local): 59/60, loose 22/22**, crisis 20/20, 0/20 near-misses; scripted agent: 60/60, loose 12/22 |
 | Latency (local, 10 concurrent, 100 calls per tool) | `npm run test:latency` | worst p95 **28 ms**, worst p99 **30 ms** (targets 300 / 450) |
 | Latency (AWS, measured inside API Gateway, 10 concurrent, 500 calls) | `npm run test:latency` + CloudWatch `Latency` | p50 **~30 ms**, p95 **110–145 ms** warm; p99 up to 455 ms when new Lambda environments cold-start |
 | Accessibility (axe: card, dashboard, simulator) | `npm run test:a11y` | **0 serious or critical issues** |
 | k6 (20 VUs, 2 min, cloud) | `npm run test:load` | script ready; runs after a deploy |
 
-The scripted agent's router was developed against the same 60 phrasings, so its score is not independent; the ≥ 90% target is meant for the Bedrock agent (`SIM_AGENT=bedrock npm run test:voice`).
+The scripted agent's router was developed against the same 60 phrasings, so its 60/60 isn't independent; on 22 loose, everyday phrasings it gets 12. The ≥ 90% target is for a model-driven agent: the Strands agent scores 59/60 and 22/22 (`SIM_AGENT=strands npm run test:voice`, about 1 s per phrase on a laptop).
 
 ## Safety and privacy by design
 
@@ -159,7 +176,7 @@ Details: [docs/security.md](docs/security.md), [docs/privacy-policy.md](docs/pri
 
 ## AWS services used (AWS Builder mini challenge)
 
-Lambda (+ AWS Lambda Web Adapter) · API Gateway HTTP API · DynamoDB (on-demand, PITR, TTL, GSIs) · KMS (customer-managed key, field-level encryption) · Cognito (user pool, managed login, resource server, pre-token-generation trigger) · SQS (+ DLQ) · EventBridge Scheduler · SES · S3 + CloudFront · Secrets Manager (demo dev key) · Amazon Bedrock (Converse API with tool use, for the simulator agent) · AWS CDK v2.
+Lambda (+ AWS Lambda Web Adapter) · API Gateway HTTP API · DynamoDB (on-demand, PITR, TTL, GSIs) · KMS (customer-managed key, field-level encryption) · Cognito (user pool, managed login, resource server, pre-token-generation trigger) · SQS (+ DLQ) · EventBridge Scheduler · SES · S3 + CloudFront · Secrets Manager (demo dev key) · Strands Agents SDK (TypeScript, for the simulator's Alexa+ stand-in; Amazon Bedrock with one setting) · AWS CDK v2.
 
 ## Repository map
 
@@ -170,7 +187,7 @@ packages/workers     materializer, sweep, notifier
 packages/dev-auth    local OAuth 2.1 server (dev only)
 packages/ui-card     MCP App card (single-file HTML)
 apps/dashboard       caregiver dashboard (React + Vite)
-apps/simulator       Alexa+ stand-in: React UI + Node agent (scripted or Bedrock)
+apps/simulator       Alexa+ stand-in: React UI + Node agent (Strands, scripted, or Bedrock)
 skills/care-circle   Agent Skill
 infra                AWS CDK
 tests                contract/, voice/, load/

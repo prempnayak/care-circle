@@ -116,3 +116,21 @@
 - **Severity:** Medium (wrong-account linking is a privacy risk in a family app)
 - **Workaround:** Register sign-out URLs on the app clients; the dashboard's Sign out goes through Cognito `/logout`, and each simulator link goes `/logout` → `/link/resume` → `/oauth2/authorize`.
 - **Suggestion:** Support `prompt=login` on the classic hosted UI too, or document the session cookie next to the authorize endpoint.
+
+### Strands `FunctionTool` turns every thrown error into a tool result
+- **Task attempted:** Start Alexa-style account linking when a Care Circle tool returns 401 inside a Strands agent.
+- **Steps taken:** Threw our `NeedsLinking` error from the tool callback.
+- **Expected:** A way to stop the agent loop with that error (or to rethrow chosen error types).
+- **Actual:** `FunctionTool` catches it and hands the model an error result; the model then apologizes, and our code never sees the 401.
+- **Severity:** Medium
+- **Workaround:** Set a flag in the callback, call `agent.cancel()`, and raise `NeedsLinking` after `invoke` returns `stopReason: 'cancelled'`.
+- **Suggestion:** An option on `FunctionTool` (or a hook) to let selected error types propagate out of `invoke`.
+
+### Small local model skips tools for emergencies and invents actions
+- **Task attempted:** Drive Care Circle with Qwen 3 8B through Strands (LM Studio).
+- **Steps taken:** Ran the 20-phrase crisis suite and loose everyday phrasings.
+- **Expected:** "I have chest pain" → `check_in` (Care Circle says 911 first and emails the family).
+- **Actual:** 12 of 20 crisis phrases were answered by the model itself without calling a tool. "Ugh, rough night, but I'm up" got "I'll let your family know you're up" with no tool call.
+- **Severity:** High for safety, if not handled
+- **Workaround:** Deterministic crisis matcher before the model; prompt rules ("never claim an action no tool did"); a loose-phrasing test set gating at ≥ 90%.
+- **Suggestion:** Agent frameworks could offer a "required tool for these intents" guard. Alexa+ guidance for add-ons should say how crisis wording is routed.
