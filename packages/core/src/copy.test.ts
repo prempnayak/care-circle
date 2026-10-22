@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allEmailSamples, allSpeechSamples, EMERGENCY_FOOTER, listNames, MEDICAL_DISCLAIMER } from './copy';
+import { allEmailSamples, allSpeechSamples, copy, EMERGENCY_FOOTER, listNames, MEDICAL_DISCLAIMER } from './copy';
 
 /** Banned in product copy (handoff §4.3.1), plus the honest-verb rules (§3.5). */
 const BANNED: RegExp[] = [
@@ -56,5 +56,14 @@ describe('copy lint', () => {
     expect(listNames(['a', 'b'])).toBe('a and b');
     expect(listNames(['a', 'b', 'c'])).toBe('a, b and c');
     expect(listNames(['a', 'b', 'c', 'd', 'e', 'f', 'g'])).toBe('a, b, c, d, e and two more');
+  });
+});
+
+describe('medicine counts read naturally', () => {
+  it('says "both" for two, never "all two"', () => {
+    expect(copy.statusDoses(2, 2, [])).toBe('Both medicines today are logged.');
+    expect(copy.dosesAllLogged(2, 'this morning')).toBe('Both of your medicines for this morning are logged.');
+    expect(copy.statusDoses(3, 3, [])).toBe('All three medicines today are logged.');
+    expect(copy.statusDoses(1, 1, [])).toBe('The one medicine today is logged.');
   });
 });

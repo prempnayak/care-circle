@@ -101,7 +101,11 @@ export const copy = {
   // ---- get_todays_doses ----
   dosesNone: (scope: string) => `You don't have any medicines listed for ${scope}. Your family can add them on the dashboard.`,
   dosesAllLogged: (count: number, scope: string) =>
-    count === 1 ? `Your one medicine for ${scope} is logged.` : `All ${numberWord(count)} of your medicines for ${scope} are logged.`,
+    count === 1
+      ? `Your one medicine for ${scope} is logged.`
+      : count === 2
+        ? `Both of your medicines for ${scope} are logged.`
+        : `All ${numberWord(count)} of your medicines for ${scope} are logged.`,
   dosesList: (openItems: string[], openCount: number, loggedCount: number) => {
     const head = `${capitalize(numberWord(openCount))}${loggedCount > 0 ? ' still open' : ''}: ${listNames(openItems)}.`;
     return `${head} Want to log ${openCount === 1 ? 'it' : 'them'}?`;
@@ -178,7 +182,8 @@ export const copy = {
   statusSelfNotYet: (windowEnd: string) => `You haven't checked in yet today; your window runs until ${windowEnd}.`,
   statusDoses: (logged: number, total: number, openNames: string[]) => {
     if (total === 0) return '';
-    if (logged === total) return total === 1 ? 'The one medicine today is logged.' : `All ${numberWord(total)} medicines today are logged.`;
+    if (logged === total)
+      return total === 1 ? 'The one medicine today is logged.' : total === 2 ? 'Both medicines today are logged.' : `All ${numberWord(total)} medicines today are logged.`;
     if (logged === 0) {
       if (openNames.length > 0 && openNames.length <= 2) return `No medicines are logged yet today; ${listNames(openNames)} ${openNames.length === 1 ? 'is' : 'are'} still open.`;
       return `None of today's ${numberWord(total)} medicines are logged yet.`;
