@@ -31,7 +31,8 @@
     "tokens": "tsx --env-file=.env scripts/mint-tokens.ts",
     "test:latency": "tsx --env-file=.env scripts/latency.ts",
     "test:a11y": "tsx scripts/a11y-check.ts",
-    "seed:cloud": "tsx scripts/seed-cloud.ts"
+    "seed:cloud": "tsx scripts/seed-cloud.ts",
+    "reset:cloud": "tsx scripts/reset-cloud.ts"
   },
   "devDependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1153.0",
