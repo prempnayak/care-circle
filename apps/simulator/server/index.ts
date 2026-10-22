@@ -10,6 +10,7 @@ import { getCookie, setCookie } from 'hono/cookie';
 import { cors } from 'hono/cors';
 import { BedrockAgent } from './agent/bedrock';
 import { ScriptedAgent } from './agent/scripted';
+import { describeModel, modelFromEnv, StrandsAgentImpl } from './agent/strands';
 import type { Agent } from './agent/types';
 import { Linker } from './linking';
 import { connect, NeedsLinking } from './mcp';
@@ -28,7 +29,7 @@ export interface SimulatorOptions {
   /** Public URL of this backend (for the OAuth redirect URI); defaults to http://localhost:<agentPort>. */
   publicUrl?: string;
   uiOrigin: string;
-  agentMode: 'scripted' | 'bedrock';
+  agentMode: 'scripted' | 'bedrock' | 'strands';
   bedrockModelId?: string;
   region?: string;
   devKey?: string;
@@ -45,9 +46,17 @@ export function createSimulatorApp(opts: SimulatorOptions) {
   const apiOrigin = new URL(opts.mcpUrl).origin;
   const publicUrl = (opts.publicUrl ?? `http://localhost:${opts.agentPort}`).replace(/\/$/, '');
   const linker = new Linker(opts.mcpUrl, process.env.SIM_CLIENT_ID ?? 'simulator', `${publicUrl}/link/callback`);
-  const agent: Agent =
-    opts.agentMode === 'bedrock' && opts.bedrockModelId ? new BedrockAgent(opts.bedrockModelId, opts.region) : new ScriptedAgent();
-  if (opts.agentMode === 'bedrock' && !opts.bedrockModelId) log('SIM_AGENT=bedrock but BEDROCK_MODEL_ID is empty; using the scripted agent.');
+  let agent: Agent = new ScriptedAgent();
+  let agentModel: string | undefined;
+  if (opts.agentMode === 'strands') {
+    const choice = modelFromEnv();
+    agent = new StrandsAgentImpl(choice);
+    agentModel = describeModel(choice);
+    log(`Strands agent on ${agentModel}`);
+  } else if (opts.agentMode === 'bedrock' && opts.bedrockModelId) {
+    agent = new BedrockAgent(opts.bedrockModelId, opts.region);
+    agentModel = `${opts.bedrockModelId} on Amazon Bedrock`;
+  } else if (opts.agentMode === 'bedrock') log('SIM_AGENT=bedrock but BEDROCK_MODEL_ID is empty; using the scripted agent.');
 
   const personas = new Map<string, PersonaState>();
   const pendingTrace = new Map<string, TraceEntry[]>();
@@ -90,6 +99,7 @@ export function createSimulatorApp(opts: SimulatorOptions) {
   app.get('/config', (c) =>
     c.json({
       agent: agent.name,
+      ...(agentModel ? { agentModel } : {}),
       devControls: opts.devEndpoints && Boolean(opts.devKey),
       personas: PERSONAS,
       mcpUrl: opts.mcpUrl,

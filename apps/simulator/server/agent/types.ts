@@ -15,7 +15,7 @@ export interface AgentReply {
 }
 
 export interface Agent {
-  readonly name: 'scripted' | 'bedrock';
+  readonly name: 'scripted' | 'bedrock' | 'strands';
   respond(ctx: AgentContext, utterance: string): Promise<AgentReply>;
   /** The first tool the agent would call for an utterance, without calling it (voice routing suite). */
   routeOnly(utterance: string, toolsHint?: unknown): Promise<{ name: string | null; args: Record<string, unknown> }>;

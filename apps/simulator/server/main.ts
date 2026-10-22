@@ -8,7 +8,7 @@ const app = createSimulatorApp({
   agentPort: port,
   publicUrl: process.env.SIM_AGENT_PUBLIC_URL,
   uiOrigin: (process.env.SIMULATOR_URL ?? 'http://localhost:5174').replace(/\/$/, ''),
-  agentMode: process.env.SIM_AGENT === 'bedrock' ? 'bedrock' : 'scripted',
+  agentMode: process.env.SIM_AGENT === 'bedrock' ? 'bedrock' : process.env.SIM_AGENT === 'strands' ? 'strands' : 'scripted',
   bedrockModelId: process.env.BEDROCK_MODEL_ID || undefined,
   region: process.env.AWS_REGION,
   devKey: process.env.DEV_KEY,

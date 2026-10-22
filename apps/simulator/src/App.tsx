@@ -101,6 +101,7 @@ export function App() {
   const [persona, setPersona] = useState('margaret');
   const [config, setConfig] = useState<{
     agent: string;
+    agentModel?: string;
     devControls: boolean;
     tz?: string;
   } | null>(null);
@@ -331,8 +332,9 @@ export function App() {
         </div>
         <div className="row">
           {config && (
-            <span className="tag" title="Which agent picks the tools: scripted rules, or a Bedrock model">
-              Agent · {config.agent}
+            <span className="tag" title={config.agentModel ? `The agent playing Alexa: ${config.agent} on ${config.agentModel}` : 'The agent playing Alexa: scripted rules'}>
+              Agent · {config.agent === 'strands' ? 'Strands' : config.agent}
+              {config.agentModel ? ` · ${config.agentModel.split(' ')[0]!.split('/').pop()}` : ''}
             </span>
           )}
           <span className="tag" title={tz}>
