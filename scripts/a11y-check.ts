@@ -73,10 +73,21 @@ await page.goto(SIMULATOR);
 await page.getByRole('button', { name: /Margaret/ }).first().waitFor();
 await audit(page, 'simulator');
 if (shots) {
+  // Wait for Alexa's reply rather than a fixed time: a model-driven agent takes a few seconds.
   const sayIt = async (text: string) => {
+    const replies = page.locator('.convo li.alexa');
+    const before = await replies.count();
     await page.getByLabel(/What .* says/).fill(text);
     await page.getByRole('button', { name: 'Say', exact: true }).click();
-    await page.waitForTimeout(1200);
+    await replies.nth(before).waitFor({ timeout: 60_000 });
+    const link = page.getByRole('button', { name: 'Link account' });
+    if (await link.isVisible()) {
+      // The persona button's title starts with the name ("Margaret, 78 — …").
+      const who = ((await page.locator('.persona-bar .seg-btn.on').getAttribute('title')) ?? '').split(',')[0]!.trim();
+      const [popup] = await Promise.all([page.waitForEvent('popup'), link.click()]);
+      await popup.getByRole('button', { name: `Sign in as ${who}` }).click();
+      await replies.nth(before + 1).waitFor({ timeout: 60_000 });
+    }
   };
   await page.getByRole('button', { name: /^Margaret/ }).click();
   await sayIt("Alexa, tell Care Circle I'm up. A bit tired today.");

@@ -70,7 +70,7 @@ The 911 (or 988 for self-harm wording) redirect is always spoken first; then the
 | **MCP Apps** card | `ui://care-circle/today` (single-file HTML, `text/html;profile=mcp-app`) on `get_status` and `get_todays_doses`; renders only from `structuredContent`, so card and speech never disagree | MCP Inspector `--app-info`, simulator |
 | **Agent Skill** | [`skills/care-circle/SKILL.md`](skills/care-circle/SKILL.md); the Strands and Bedrock agents use it as their system prompt | — |
 | Context-aware add-on that keeps state across sessions | Check-ins, dose logs, week summaries, join codes, missed-deadline sweeps | — |
-| Latency < 500 ms | No model calls in tools; ≤ 3 single-partition DynamoDB calls (usually 2) + 1 optional SQS send | local p95 **28 ms**, p99 **30 ms** (below) |
+| Latency < 500 ms | No model calls in tools; ≤ 3 single-partition DynamoDB calls (usually 2) + 1 optional SQS send | in AWS: p50 **36 ms**, p95 **62 ms**, p99 **85 ms** (below) |
 
 ### The 9 tools
 
@@ -80,27 +80,9 @@ Each description starts with what it does, then "Use for:" with real phrasings; 
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  subgraph Clients
-    A[Alexa+ / voice simulator]
-    D[Caregiver dashboard]
-  end
-  subgraph API["API (one Node server: Lambda Web Adapter in AWS, Docker locally)"]
-    M["POST /mcp — 9 MCP tools"]
-    W["/.well-known/* — PRM + RFC 8414"]
-    R["/api/* — dashboard REST"]
-  end
-  A --> M
-  A -.OAuth 2.1 + PKCE + resource.-> C[(Cognito / dev OAuth server)]
-  D --> R
-  M & R --> T[(DynamoDB: 1 table, KMS, TTL, 2 GSIs)]
-  M -- urgent alerts --> Q[[SQS]] --> N[Notifier Lambda] --> E[Family email: SES / Mailpit]
-  S[EventBridge Scheduler: sweep every 5 min, materializer hourly] --> T
-  S --> Q
-```
+![Care Circle architecture: Alexa+ or the simulator (Strands agent, local model or Bedrock) calls the MCP server on Lambda behind API Gateway; Cognito for sign-in; DynamoDB + KMS for data; EventBridge sweep, SQS and the notifier send SES email](docs/images/architecture.png)
 
-A spoken check-in: the client posts `tools/call check_in` with a bearer token → the auth gate verifies the JWT locally (cached keys) → one GSI1 query for membership and circle settings → one conditional update of today's check-in → (crisis wording only) one SQS send → reply. More in [docs/architecture.md](docs/architecture.md).
+A spoken check-in: the client posts `tools/call check_in` with a bearer token → the auth gate verifies the JWT locally (cached keys) → one GSI1 query for membership and circle settings → one conditional update of today's check-in → (crisis wording only) one SQS send → reply. Family messages both ways, tap-to-log, the data model and the agent design are in [docs/architecture.md](docs/architecture.md).
 
 ## Run it locally (one command)
 
@@ -142,31 +124,39 @@ The Strands agent calls one Care Circle tool per turn and speaks Care Circle's r
 
 CDK v2 stacks in [`infra/`](infra/README.md): DynamoDB + KMS, Cognito (managed login, resource server, static clients), the API in Lambda via the AWS Lambda Web Adapter behind API Gateway, SQS + notifier + EventBridge Scheduler + SES, and S3 + CloudFront for the web apps. `npm run cdk -- synth` builds everything; deploying is a deliberate two-step process. Step-by-step guide, with CLI commands and what each step does: [`infra/DEPLOY.md`](infra/DEPLOY.md).
 
-**Deployed and verified in us-east-1 (Oct 20–21, 2026).** Over a live HTTPS MCP endpoint: Alexa-style account linking against Cognito (401 → PRM → RFC 8414 → PKCE with `resource` → retry; Cognito accepts `resource` at both endpoints, so no proxy), check-ins, dose logs, messages, the crisis redirect, and real SES emails for missed check-ins, missed medicines, urgent wording and the all-clear. Notes and messages are KMS-encrypted per circle. The stacks are torn down after recording to keep costs at zero.
+**Deployed and verified in us-east-1 (Oct 20–23, 2026).** Over a live HTTPS MCP endpoint: Alexa-style account linking against Cognito (401 → PRM → RFC 8414 → PKCE with `resource` → retry; Cognito accepts `resource` at both endpoints, so no proxy), check-ins, dose logs, tap-to-log, family messages both ways, the crisis redirect, and real SES emails for missed check-ins, missed medicines, urgent wording, messages and the all-clear. The simulator drove it with the Strands agent on a local model. Notes and messages are KMS-encrypted per circle. The stacks are torn down after recording to keep costs at zero.
 
 ## Test results
 
 | Gate | Command | Result |
 | --- | --- | --- |
 | Lint and types | `npm run lint && npm run typecheck` | 0 errors |
-| Unit (tool handlers, roles, crisis, DST, materializer, sweep idempotency, notifier dedupe, copy lint, log redaction) | `npm test` | **300 / 300 pass**; core coverage 81% statements / 83% lines |
+| Unit (tool handlers, roles, crisis, DST, materializer, sweep idempotency, notifier dedupe, copy lint, log redaction, Strands agent) | `npm test` | **315 / 315 pass**; core coverage 81% statements / 83% lines |
 | MCP contract (both protocol versions, schemas valid, every tool callable, `isError`, 401 without `WWW-Authenticate`) | `npm run test:contract` | **36 / 36 pass** |
 | Auth lifecycle (link → use → expiry → refresh → unlink → other account) | `npm run test:contract` | pass; no data crosses accounts |
 | MCP Inspector CLI (`--strict` schemas, unauthenticated help, MCP App metadata, resource) | `npm run test:inspector` | **4 / 4 pass** |
 | Voice routing (60 phrasings + 22 loose everyday phrasings) and crisis (20 crisis + 20 near-misses) | `npm run test:voice` | **Strands agent (Qwen 3 8B, local): 59/60, loose 22/22**, crisis 20/20, 0/20 near-misses; scripted agent: 60/60, loose 12/22 |
 | Latency (local, 10 concurrent, 100 calls per tool) | `npm run test:latency` | worst p95 **28 ms**, worst p99 **30 ms** (targets 300 / 450) |
-| Latency (AWS, measured inside API Gateway, 10 concurrent, 500 calls) | `npm run test:latency` + CloudWatch `Latency` | p50 **~30 ms**, p95 **110–145 ms** warm; p99 up to 455 ms when new Lambda environments cold-start |
+| Latency (AWS, API Gateway's own `Latency` metric; 5 tools, warm) | `npm run test:latency` + CloudWatch | one at a time (530 calls): p50 **36 ms**, p95 **62 ms**, p99 **85 ms**; 10 at a time (885 calls): p50 **38 ms**, p95 **65 ms**, p99 **140 ms**; 0 errors. A cold start adds 0.65–0.94 s to the first call on a new Lambda environment |
 | Accessibility (axe: card, dashboard, simulator) | `npm run test:a11y` | **0 serious or critical issues** |
-| k6 (20 VUs, 2 min, cloud) | `npm run test:load` | script ready; runs after a deploy |
+| k6 (20 VUs, 2 min, cloud) | `npm run test:load` | script ready; not run (AWS-side numbers above come from the same tools via CloudWatch) |
 
 The scripted agent's router was developed against the same 60 phrasings, so its 60/60 isn't independent; on 22 loose, everyday phrasings it gets 12. The ≥ 90% target is for a model-driven agent: the Strands agent scores 59/60 and 22/22 (`SIM_AGENT=strands npm run test:voice`, about 1 s per phrase on a laptop).
+
+## Known limitations
+
+- **Not on a real Echo yet.** Amazon's MCP Toolkit and Web Simulator aren't open to hackathon entrants, so `apps/simulator` stands in for Alexa+ (same MCP calls, account linking and card host). The server is ready to register as an add-on.
+- **The simulator's model ran locally.** Our new AWS account is still in verification: Bedrock calls return "Operation not allowed" and CloudShell won't start. The Strands agent ran on Qwen 3 8B in LM Studio; Bedrock is one setting away (`SIM_MODEL_PROVIDER=bedrock`).
+- **Latency from far away.** Inside AWS a tool call takes about 36 ms (p50); from a laptop in India the same call takes about 300 ms, because of the round trip to us-east-1. Alexa+ calls from Amazon's cloud.
+- **Cold starts.** The first call on a new Lambda environment takes 0.65–0.94 s longer. Provisioned concurrency would keep environments warm at a small cost; we left it off.
 
 ## Safety and privacy by design
 
 - **No emergency claims.** Never "monitor", "keeps … safe", or "detects falls". Every help reply and email says it isn't an emergency service and to call 911.
 - **Crisis redirect first.** A deterministic matcher ([`packages/core/src/crisis.ts`](packages/core/src/crisis.ts)) with near-miss tests ("fell asleep", "stroke of luck"): injury wording → "call 911", self-harm wording → "call or text 988"; then the family is emailed.
 - **No medical content.** Medicines are a name, nicknames and times. No dosage, strength or drug information; dosing questions get "ask your pharmacist or doctor".
-- **Caregivers never hear notes.** Notes and messages are encrypted per field (KMS / AES-GCM) and shown only on the signed-in dashboard.
+- **Caregivers never hear notes.** Notes and messages are encrypted per field (KMS / AES-GCM) and shown only on the signed-in dashboard. Alexa speaks in a room; a note like "dizzy again" shouldn't be announced to whoever is nearby. Messages from her also go to the family by email.
+- **The agent can't skip the crisis redirect.** In the simulator, the Strands agent runs the same deterministic crisis matcher before the model, so a fall or self-harm phrase always reaches `check_in`, whatever the model decides.
 - **Bounded input.** `mood` is an enum; `note` and `message` are ≤ 140 characters; no other free text.
 - **Consent.** Joining needs a read-back and an explicit "yes"; `consentAt` is stored; the person can pause sharing by voice.
 - **No device data, no analytics SDKs** (an ESLint rule blocks them). Logs redact notes, messages, tokens and email addresses, and a test enforces it.

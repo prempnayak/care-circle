@@ -134,3 +134,12 @@
 - **Severity:** High for safety, if not handled
 - **Workaround:** Deterministic crisis matcher before the model; prompt rules ("never claim an action no tool did"); a loose-phrasing test set gating at ≥ 90%.
 - **Suggestion:** Agent frameworks could offer a "required tool for these intents" guard. Alexa+ guidance for add-ons should say how crisis wording is routed.
+
+### CloudShell unavailable on a new account ("verification in progress")
+- **Task attempted:** Measure Care Circle's latency from inside us-east-1, as Alexa would see it, using AWS CloudShell.
+- **Steps taken:** Opened CloudShell in us-east-1 as an IAM admin user.
+- **Expected:** A shell.
+- **Actual:** "Unable to create the environment. Your account verification is in progress. This may take up to two days for new accounts." The same hold blocks Bedrock, while Lambda, API Gateway, DynamoDB, Cognito, SES and CDK deploys all work.
+- **Severity:** Low (we use API Gateway's own CloudWatch latency metrics instead)
+- **Workaround:** Generate load from a laptop and read API Gateway `Latency`/`IntegrationLatency` and Lambda `Duration` percentiles for that window.
+- **Suggestion:** Show "account verification pending" once, in one place (Billing or the console home), with which services it blocks. Today it surfaces as unrelated errors in Bedrock ("Operation not allowed") and CloudShell.
