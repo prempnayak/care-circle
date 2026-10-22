@@ -41,29 +41,28 @@ export function CardFrame({
     return () => ro.disconnect();
   }, []);
 
+  // Listen before the card loads: the card says hello (ui/initialize) as soon as its script runs, and
+  // a host that only starts listening on the iframe's load event can miss it and leave the card on
+  // "Loading today…". The iframe's window object stays the same when srcdoc navigates it.
   useEffect(() => {
     const iframe = ref.current;
-    if (!iframe) return;
-    let bridge: AppBridge | null = null;
-    const onLoad = async () => {
-      const win = iframe.contentWindow;
-      if (!win) return;
-      bridge = new AppBridge(null, { name: 'Care Circle simulator (Echo Show)', version: '0.1.0' }, { serverTools: {} });
-      bridge.oncalltool = async (params) => {
-        if (!callRef.current) return { isError: true, content: [{ type: 'text', text: 'Not available here.' }] };
-        return callRef.current(params);
-      };
-      bridge.oninitialized = () => {
-        void bridge!
-          .sendToolInput({ arguments: toolArgs })
-          .then(() => bridge!.sendToolResult(toolResult as Parameters<AppBridge['sendToolResult']>[0]));
-      };
-      await bridge.connect(new PostMessageTransport(win, win));
+    const win = iframe?.contentWindow;
+    if (!iframe || !win) return;
+    let closed = false;
+    const bridge = new AppBridge(null, { name: 'Care Circle simulator (Echo Show)', version: '0.1.0' }, { serverTools: {} });
+    bridge.oncalltool = async (params) => {
+      if (!callRef.current) return { isError: true, content: [{ type: 'text', text: 'Not available here.' }] };
+      return callRef.current(params);
     };
-    iframe.addEventListener('load', onLoad);
+    bridge.oninitialized = () => {
+      void bridge.sendToolInput({ arguments: toolArgs }).then(() => bridge.sendToolResult(toolResult as Parameters<AppBridge['sendToolResult']>[0]));
+    };
+    void bridge.connect(new PostMessageTransport(win, win)).then(() => {
+      if (!closed) iframe.srcdoc = html;
+    });
     return () => {
-      iframe.removeEventListener('load', onLoad);
-      void bridge?.close();
+      closed = true;
+      void bridge.close();
     };
   }, [html, toolResult, toolArgs]);
 
@@ -74,7 +73,6 @@ export function CardFrame({
         title="Care Circle card"
         className="card-frame"
         sandbox="allow-scripts"
-        srcDoc={html}
         style={{ width: DEVICE.w, height: DEVICE.h, transform: `scale(${scale})` }}
       />
     </div>
