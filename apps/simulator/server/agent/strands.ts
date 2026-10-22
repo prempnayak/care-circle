@@ -61,6 +61,16 @@ export function crisisCheckIn(utterance: string): { name: 'check_in'; args: { no
   return matchCrisis(words).category ? { name: 'check_in', args: { note: words.slice(0, 140) } } : null;
 }
 
+/**
+ * Fill a required field small models drop. log_dose needs `status`; Qwen 3 8B leaves it out after
+ * "Want to log them?" → "yes". Skipping is always said outright ("I skipped…", "I forgot…"), and the
+ * model sets it then, so a missing status means taken.
+ */
+export function repairArgs(tool: string, args: Record<string, unknown>): Record<string, unknown> {
+  if (tool === 'log_dose' && args.status === undefined) return { ...args, status: 'taken' };
+  return args;
+}
+
 /** Model output can carry Qwen-style <think> blocks; Alexa never says them. */
 function clean(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
@@ -93,6 +103,8 @@ export class StrandsAgentImpl implements Agent {
       "Put the person's own words in `note` or `message` exactly as they said them, without the wake word.",
       'Questions about what Care Circle is or can do: call care_circle_help.',
       'After a read-back that ends with "say yes", a "yes" means: call the same tool again with the same arguments plus confirm: true.',
+      'After "Want to log them?" about several medicines, a "yes" means all of them: call log_dose with that part_of_day ' +
+        '(morning, afternoon or evening), status taken and confirm: true, and no medication_name. After "Want to log it?", log that one medicine.',
     ];
     // Qwen 3 thinks before answering unless told not to; tool choice doesn't need it and it costs seconds.
     if (this.choice.provider === 'lmstudio' && /qwen3/i.test(this.choice.modelId)) lines.push('/no_think');
@@ -107,7 +119,7 @@ export class StrandsAgentImpl implements Agent {
           name: t.name,
           description: t.description ?? t.name,
           inputSchema: t.inputSchema as JSONSchema,
-          callback: (input) => onCall(t.name, (input ?? {}) as Record<string, unknown>),
+          callback: (input) => onCall(t.name, repairArgs(t.name, (input ?? {}) as Record<string, unknown>)),
         }),
     );
   }
@@ -148,7 +160,7 @@ export class StrandsAgentImpl implements Agent {
       const agent: StrandsAgent = new StrandsAgent({
         model: this.model,
         systemPrompt: this.systemPrompt(ctx.now),
-        messages: history.slice(-MAX_HISTORY),
+        messages: contextFor(history),
         printer: false,
         toolExecutor: 'sequential',
         tools: this.tools(conn.tools, async (name, args) => {
@@ -184,6 +196,19 @@ export class StrandsAgentImpl implements Agent {
       await conn.close();
     }
   }
+}
+
+/**
+ * What the model sees of earlier turns: only the last exchange, and only when Alexa's last reply asked
+ * something ("Want to log it?", "Say yes to confirm"). With more history, Qwen repeated earlier answers
+ * instead of calling a tool, so stale data came back as if it were current.
+ */
+export function contextFor(history: MessageData[]): MessageData[] {
+  const last = history.at(-1);
+  const lastText = last?.role === 'assistant' ? last.content.map((c) => ('text' in c ? c.text : '')).join(' ') : '';
+  if (!/\?\s*$|say yes|want to/i.test(lastText)) return [];
+  const start = history.findLastIndex((m) => m.role === 'user' && m.content.some((c) => 'text' in c));
+  return start === -1 ? [] : history.slice(start);
 }
 
 /** Keep a compact, valid conversation: user text, then (tool use, tool result,) assistant text. */

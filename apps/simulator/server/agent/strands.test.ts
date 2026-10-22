@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { NeedsLinking, type Connection } from '../mcp';
 import type { PersonaState, TraceEntry } from '../types';
-import { crisisCheckIn, describeModel, modelFromEnv, StrandsAgentImpl } from './strands';
+import type { MessageData } from '@strands-agents/sdk';
+import { contextFor, crisisCheckIn, repairArgs, describeModel, modelFromEnv, StrandsAgentImpl } from './strands';
 
 describe('modelFromEnv', () => {
   it('defaults to Qwen 3 8B on the local LM Studio server', () => {
@@ -80,5 +81,43 @@ describe('StrandsAgentImpl.respond (safety-net path, no model call)', () => {
 
   it('routes crisis wording without asking the model', async () => {
     expect(await agent.routeOnly('I want to end my life', [])).toEqual({ name: 'check_in', args: { note: 'I want to end my life' } });
+  });
+});
+
+describe('contextFor', () => {
+  const turn = (said: string, reply: string, tool?: string): MessageData[] => [
+    { role: 'user', content: [{ text: said }] },
+    ...(tool
+      ? ([
+          { role: 'assistant', content: [{ toolUse: { name: tool, toolUseId: 't1', input: {} } }] },
+          { role: 'user', content: [{ toolResult: { toolUseId: 't1', status: 'success', content: [{ text: reply }] } }] },
+        ] as MessageData[])
+      : []),
+    { role: 'assistant', content: [{ text: reply }] },
+  ];
+
+  it('gives the model no history after a plain answer, so it asks Care Circle again', () => {
+    expect(contextFor([...turn('what pills do I have', 'Both medicines today are logged.', 'get_todays_doses')])).toEqual([]);
+  });
+
+  it('keeps only the last exchange when Alexa asked a question', () => {
+    const history = [...turn("I'm up", 'Thanks, Margaret.', 'check_in'), ...turn('what pills do I have', 'One still open: metformin at 8. Want to log it?', 'get_todays_doses')];
+    const ctx = contextFor(history);
+    expect(ctx).toHaveLength(4);
+    expect(ctx[0]).toEqual({ role: 'user', content: [{ text: 'what pills do I have' }] });
+  });
+
+  it('is empty for a new conversation', () => {
+    expect(contextFor([])).toEqual([]);
+  });
+});
+
+describe('repairArgs', () => {
+  it('treats a log_dose without a status as taken', () => {
+    expect(repairArgs('log_dose', { part_of_day: 'morning', confirm: true })).toEqual({ part_of_day: 'morning', confirm: true, status: 'taken' });
+  });
+  it('keeps an explicit status and leaves other tools alone', () => {
+    expect(repairArgs('log_dose', { medication_name: 'lisinopril', status: 'skipped' }).status).toBe('skipped');
+    expect(repairArgs('check_in', { mood: 'good' })).toEqual({ mood: 'good' });
   });
 });
