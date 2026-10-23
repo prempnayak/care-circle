@@ -30,7 +30,7 @@
 
 ### AWS Lambda + AWS Lambda Web Adapter
 - **Used for:** running the same Node HTTP server in Lambda (API and simulator agent).
-- **Worked well:** zero code changes between local and cloud. Warm requests measured inside API Gateway: ~30 ms p50, 110–145 ms p95 for MCP tool calls.
+- **Worked well:** zero code changes between local and cloud. Measured inside API Gateway (warm, 5 tools): p50 36 ms, p95 62 ms, p99 85 ms one at a time; p95 65 ms at 10 at a time.
 - **Needs work (measured):** cold starts add 0.5–2 s; ten concurrent requests start ten environments, which shows up in p99. Provisioned concurrency fixes it at a cost.
 - **Needs work:** `NodejsFunction` always sets `index.<handler>`, so pointing the handler at `run.sh` needs an escape hatch.
 - **Again?** Yes.
